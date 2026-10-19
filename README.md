@@ -33,7 +33,7 @@ optional here and off by default.
 
 ## Quickstart
 
-You need Python 3.11 or newer and [uv](https://docs.astral.sh/uv/).
+You need Python 3.12 or newer and [uv](https://docs.astral.sh/uv/).
 
 ```sh
 git clone https://github.com/vijayyarabolu/maxie-assistant.git

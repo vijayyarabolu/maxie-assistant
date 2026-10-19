@@ -2,7 +2,7 @@
 name = "maxie"
 version = "0.1.0"
 description = "Maxie: a voice assistant hub for the Mac and iPhone (router cascade, Claude brain with tools, memory, briefs, PWA)."
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
   "anthropic>=1.14",
   "fastapi>=0.110",
