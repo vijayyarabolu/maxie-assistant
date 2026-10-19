@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sign in to Maxie</title>
+  <meta name="theme-color" content="#F5EFE6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0E0B14" media="(prefers-color-scheme: dark)">
+  <link rel="apple-touch-icon" href="/icon-180.png">
+  <link rel="icon" href="/icon-192.png">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    main.signin { max-width: 360px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 16vh) 16px 32px;
+                  display: flex; flex-direction: column; gap: 14px; }
+    main.signin p { margin: 0; color: var(--quiet); }
+    main.signin form { display: flex; flex-direction: column; gap: 6px; }
+    main.signin input { width: 100%; font-size: 16px; }
+    #why { min-height: 22px; color: var(--words); }
+    #why.bad { color: var(--bad); }
+  </style>
+</head>
+<body>
+  <main class="signin">
+    <h1>Maxie</h1>
+    <p id="lead">Checking the hub.</p>
+    <form id="first" hidden>
+      <label>New passcode <input id="p1" type="password" autocomplete="new-password" minlength="6" required></label>
+      <label>Same again <input id="p2" type="password" autocomplete="new-password" minlength="6" required></label>
+      <div class="actions"><button class="primary" type="submit">Set passcode</button></div>
+    </form>
+    <form id="login" hidden>
+      <label>Passcode <input id="pass" type="password" autocomplete="current-password" required></label>
+      <div class="actions"><button class="primary" type="submit">Sign in</button></div>
+    </form>
+    <p id="why" role="status"></p>
+  </main>
+  <script>
+    "use strict";
+    const $ = (s) => document.querySelector(s);
+    const why = (text, bad = false) => { $("#why").textContent = text; $("#why").classList.toggle("bad", bad); };
+    const next = new URLSearchParams(location.search).get("next") || "/";
+    const go = () => location.replace(next.startsWith("/") && !next.startsWith("//") ? next : "/");
+
+    async function post(path, body) {
+      const r = await fetch(path, { method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (r.ok) return true;
+      why((await r.json().catch(() => ({}))).detail || `The hub said ${r.status}.`, true);
+      return false;
+    }
+
+    async function start() {
+      const st = await (await fetch("/api/auth/state", { cache: "no-store" })).json();
+      if (st.signed_in) { go(); return; }
+      if (!st.passcode_set && st.can_set_up) {
+        $("#lead").textContent = "Welcome. Pick a passcode for this hub. You'll use it to sign in from any browser, " +
+          "and apps like the iPhone Shortcut get their own tokens in Settings later.";
+        $("#first").hidden = false; $("#p1").focus();
+      } else if (!st.passcode_set) {
+        $("#lead").textContent = "This hub has no passcode yet. Set it on the computer that runs Maxie: " +
+          "open http://127.0.0.1:8780 there.";
+      } else {
+        $("#lead").textContent = st.demo ? "Demo hub. The passcode is demo1234." : "Sign in to use Maxie on this device.";
+        $("#login").hidden = false; $("#pass").focus();
+      }
+    }
+
+    $("#first").onsubmit = async (e) => {
+      e.preventDefault();
+      if ($("#p1").value !== $("#p2").value) { why("The two passcodes are different.", true); return; }
+      if (await post("/api/auth/setup", { passcode: $("#p1").value })) location.replace("/settings.html?welcome=1");
+    };
+    $("#login").onsubmit = async (e) => {
+      e.preventDefault();
+      why("Signing in.");
+      if (await post("/api/auth/login", { passcode: $("#pass").value })) go();
+    };
+    start().catch(() => why("The hub isn't answering. Is it running?", true));
+  </script>
+</body>
+</html>
