@@ -1,0 +1,29 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      TZ: America/Chicago
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv venv .venv && uv pip install -p .venv -e ".[dev]"
+      - name: laya package for the wire-contract test (no torch, no weights)
+        run: uv pip install -p .venv --no-deps laya==0.4.7
+      - name: lint
+        run: .venv/bin/ruff check .
+      - name: name audit (everything you see or hear says Maxie)
+        run: .venv/bin/python scripts/audit_names.py
+      - name: tests (offline: fakes and mock transports, no network)
+        run: .venv/bin/python -m pytest -q
+      - name: router eval (100 commands, offline; fails below evals/baseline.json)
+        run: .venv/bin/python -m maxie.evals --check
+      - name: web app syntax
+        run: for f in web/app.js web/sw.js web/mascot.js web/settings.js; do node --check "$f"; done
