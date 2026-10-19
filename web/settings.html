@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Maxie Settings</title>
+  <meta name="theme-color" content="#F5EFE6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0E0B14" media="(prefers-color-scheme: dark)">
+  <link rel="apple-touch-icon" href="/icon-180.png">
+  <link rel="icon" href="/icon-192.png">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="settings-page">
+  <header class="sky">
+    <div class="title">
+      <h1>Settings</h1>
+      <span class="status s-grey" id="where">Loading</span>
+    </div>
+    <a class="back" href="/">Back to chat</a>
+  </header>
+
+  <nav class="jump" aria-label="Sections">
+    <a href="#status">Status</a><a href="#claude">Claude</a><a href="#google">Google</a><a href="#about">About me</a>
+    <a href="#access">Access</a><a href="#optional">Optional</a>
+  </nav>
+
+  <main>
+    <p id="banner" class="banner" hidden></p>
+
+    <section id="status" class="section">
+      <h2>Status</h2>
+      <p class="hint">Everything Maxie can use, and whether it's working. Optional parts stay off until you set them up.</p>
+      <ol id="items" class="plain status-list"></ol>
+    </section>
+
+    <section id="claude" class="section">
+      <h2>Claude API key</h2>
+      <p class="hint">Why a key: Anthropic doesn't offer a "sign in with Claude" for apps like this one, so Maxie
+        uses an API key from your own account. Get one at <a href="https://console.anthropic.com/settings/keys"
+        target="_blank" rel="noopener">console.anthropic.com/settings/keys</a> (you add a payment method under Billing).</p>
+      <p class="hint">What it costs: Haiku 5.5 is $0.10 in and $0.50 out per million tokens, Sonnet 5.5 is $2 and $10,
+        Opus 5.5 is $4 and $20, and a web search is $0.01 (<a href="https://platform.claude.com/docs/en/about-claude/pricing"
+        target="_blank" rel="noopener">Anthropic pricing</a>, October 2026). Most commands never reach Claude, and the
+        cached prompt keeps the rest cheap. My estimate for everyday use is $5 to $10 a month (README, Costs). The cap below stops it at a number you pick.</p>
+      <p class="hint">Without a key: rule commands still work (open an app or link, music, volume, timers, maths, dates,
+        the time, remember this), and so do Memory, Activity and Settings.</p>
+      <label>API key <input id="anthropic-key" type="password" autocomplete="off" placeholder="sk-ant-..."></label>
+      <div class="actions">
+        <button class="primary" data-save-secret="ANTHROPIC_API_KEY" data-input="anthropic-key">Save key</button>
+        <button data-test="anthropic">Test</button>
+        <button class="danger" data-remove-secret="ANTHROPIC_API_KEY">Remove</button>
+      </div>
+      <label>Monthly budget cap in dollars <input id="budget" type="number" min="1" step="1"></label>
+      <p class="hint" id="budget-line"></p>
+      <div class="actions"><button class="primary" id="save-budget">Save cap</button></div>
+    </section>
+
+    <section id="google" class="section">
+      <h2>Google</h2>
+      <p class="hint">Gmail, Calendar and Drive, through Google's own sign-in. You can connect more than one account.
+        Google doesn't let an open source app ship a shared client secret, so you make your own OAuth client once.
+        It's free and takes about five minutes.</p>
+      <ol class="steps">
+        <li>Open <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Google Cloud</a>
+          and create a project (any name, for example "Maxie").</li>
+        <li>In APIs and Services, Library, enable the <a href="https://console.cloud.google.com/apis/library/gmail.googleapis.com"
+          target="_blank" rel="noopener">Gmail API</a>, the <a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com"
+          target="_blank" rel="noopener">Google Calendar API</a> and the <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com"
+          target="_blank" rel="noopener">Google Drive API</a>.</li>
+        <li>Open <a href="https://console.cloud.google.com/auth/branding" target="_blank" rel="noopener">Google Auth Platform</a>,
+          choose External, fill in an app name and your email. Under Audience, add your own Google account as a test user,
+          or publish the app so the sign-in doesn't expire after 7 days. Google will warn that the app isn't verified;
+          that's expected for an app only you use.</li>
+        <li>Under <a href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noopener">Clients</a>,
+          create a client of type <b>Desktop app</b>. Desktop clients accept the sign-in coming back to this computer
+          (<span id="callback">http://127.0.0.1:8780/oauth/google/callback</span>) without any extra setup.</li>
+        <li>Download its JSON and paste it below, or paste the client ID and secret.</li>
+      </ol>
+      <p id="client-state" class="hint"></p>
+      <label>Client JSON <textarea id="client-json" rows="3" placeholder='{"installed": {"client_id": "...", ...}}'></textarea></label>
+      <span class="row"><input id="client-id" placeholder="Client ID" autocomplete="off">
+        <input id="client-secret" type="password" placeholder="Client secret" autocomplete="off"></span>
+      <div class="actions">
+        <button class="primary" id="save-client">Save client</button>
+        <button class="danger" id="remove-client">Remove client</button>
+      </div>
+
+      <h3>Accounts</h3>
+      <p class="hint">"main" is your own mail, Calendar and Drive: Maxie reads, searches and drafts, and sends only after
+        your OK. "job" is a read-only inbox the morning brief scans for interviews and recruiters. Any other label is
+        another read-only inbox. Scopes are the smallest that do the job: Gmail read and compose, Calendar events,
+        Drive read-only.</p>
+      <ol id="accounts" class="plain"></ol>
+      <div class="actions">
+        <button class="primary" data-connect="main">Connect main account</button>
+        <button data-connect="job">Connect a job inbox</button>
+      </div>
+      <span class="row"><input id="other-label" placeholder="Another inbox, with a label like school" autocomplete="off">
+        <button id="connect-other">Connect</button></span>
+      <p id="google-note" class="hint"></p>
+    </section>
+
+    <section id="about" class="section">
+      <h2>About me</h2>
+      <p class="hint">Context for every answer: your name, your city (weather and the clock) and your work hours.</p>
+      <label>Name <input id="user-name" placeholder="Alex" autocomplete="given-name"></label>
+      <span class="row"><input id="city" placeholder="City, like Lisbon"><button id="find-city">Set city</button></span>
+      <p id="place-line" class="hint"></p>
+      <label>Work hours <span class="row"><input id="work-start" type="time"> <span class="hint">to</span>
+        <input id="work-end" type="time"></span></label>
+      <div class="actions"><button class="primary" id="save-about">Save</button></div>
+    </section>
+
+    <section id="access" class="section">
+      <h2>Access</h2>
+      <p class="hint">Browsers sign in with your passcode. Apps that can't show a sign-in page, like the iPhone Shortcut,
+        use a token you make here. Each token is shown once.</p>
+      <h3>Change passcode</h3>
+      <span class="row"><input id="old-pass" type="password" placeholder="Current" autocomplete="current-password">
+        <input id="new-pass" type="password" placeholder="New, at least 6 characters" autocomplete="new-password"></span>
+      <div class="actions"><button id="change-pass">Change passcode</button><button id="sign-out">Sign out here</button></div>
+      <h3>App tokens</h3>
+      <span class="row"><input id="token-label" placeholder="What it's for, like iPhone Shortcut" autocomplete="off">
+        <button class="primary" id="new-token">Make a token</button></span>
+      <p id="token-once" class="once" hidden></p>
+      <div class="actions"><button id="mac-app" hidden>Connect the Mac app</button></div>
+      <ol id="tokens" class="plain"></ol>
+      <h3>Signed-in browsers</h3>
+      <ol id="sessions" class="plain"></ol>
+    </section>
+
+    <section id="optional" class="section">
+      <h2>Optional</h2>
+      <h3>Local router (Laya)</h3>
+      <p class="hint">A small local classifier that sits between the regex rules and Claude Haiku. It's free and private,
+        but it's a 421M-parameter model you run yourself with make laya (README, "Local router"). Leave the URL
+        empty to skip it.</p>
+      <label>Laya URL <input id="laya-url" placeholder="http://127.0.0.1:8000"></label>
+      <label>Laya API key (the one you started it with) <input id="laya-key" type="password" autocomplete="off"></label>
+      <div class="actions"><button class="primary" id="save-laya">Save</button><button data-test="laya">Test</button></div>
+
+      <h3>Job search apps</h3>
+      <p class="hint">jobhunt and resumegen are two companion apps I wrote for my own job search. Maxie can read new
+        jobs and queue tailored resumes through their APIs. If you don't run them, leave this empty.</p>
+      <label>jobhunt URL <input id="jobhunt-url" placeholder="http://127.0.0.1:8765"></label>
+      <label>resumegen URL <input id="resumegen-url" placeholder="http://127.0.0.1:8770"></label>
+      <label>jobhunt token file <input id="jobhunt-file" placeholder="~/jobhunt/data/lan_token"></label>
+      <label>resumegen token file <input id="resumegen-file" placeholder="~/resumegen/data/token"></label>
+      <label>Or paste the jobhunt token <input id="jobhunt-token" type="password" autocomplete="off"></label>
+      <div class="actions"><button class="primary" id="save-jobs">Save</button><button data-test="jobs">Test</button></div>
+
+      <h3>Backups</h3>
+      <p class="hint">Nightly encrypted backups of your memory and settings (age, with a passphrase). Keep the passphrase
+        somewhere safe: without it a backup can't be opened.</p>
+      <label>Backup passphrase <input id="backup-pass" type="password" autocomplete="new-password" placeholder="12 characters or more"></label>
+      <div class="actions"><button class="primary" data-save-secret="BACKUP_PASSPHRASE" data-input="backup-pass">Save passphrase</button></div>
+
+      <h3>Mac only</h3>
+      <p class="hint" id="mac-note"></p>
+      <p class="hint" id="data-dir"></p>
+    </section>
+  </main>
+  <script src="/settings.js"></script>
+</body>
+</html>

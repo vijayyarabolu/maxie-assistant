@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Maxie</title>
+  <meta name="theme-color" content="#F5EFE6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0E0B14" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Maxie">
+  <link rel="apple-touch-icon" href="/icon-180.png">
+  <link rel="icon" href="/icon-192.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body data-mode="idle">
+  <!-- Words over icons: the mic is the only glyph. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"/></symbol>
+    </defs>
+  </svg>
+
+  <header class="sky">
+    <canvas id="bot" class="bot" aria-label="Maxie's mascot" role="img"></canvas>
+    <div class="title">
+      <h1>Maxie</h1>
+      <!-- Status is a word; colour is only a second signal. -->
+      <span id="status" class="status s-grey" role="status"><span class="s-word">Connecting</span></span>
+    </div>
+  </header>
+
+  <nav role="tablist" class="tabs">
+    <button role="tab" data-tab="chat" aria-selected="true">Chat</button>
+    <button role="tab" data-tab="activity" aria-selected="false">Activity</button>
+    <button role="tab" data-tab="memory" aria-selected="false">Memory</button>
+    <button role="tab" data-tab="settings" aria-selected="false" class="end">Settings</button>
+  </nav>
+
+  <main>
+    <section id="tab-chat" class="tab">
+      <div class="thread">
+        <div id="confirms"></div>
+        <ol id="log" aria-live="polite"></ol>
+      </div>
+      <div class="actions"><button id="copy-all" class="small" type="button">Copy conversation</button></div>
+      <form id="composer" autocomplete="off">
+        <div class="line">
+          <input id="text" placeholder="Ask or just talk" enterkeyhint="send" aria-label="Message">
+          <button type="button" id="mic" class="mic" aria-label="Hold to talk"><svg><use href="#i-mic"/></svg></button>
+        </div>
+        <p id="composer-hint" class="hint" hidden>Return sends. Hold the mic to talk.</p>
+      </form>
+    </section>
+
+    <section id="tab-activity" class="tab" hidden>
+      <h2>Waiting for your OK</h2>
+      <div id="pending" class="card-list thread"></div>
+      <h2>Tasks</h2>
+      <div class="thread">
+        <div id="current-task"></div>
+        <ol id="tasks" class="plain"></ol>
+      </div>
+      <h2>Teach the router</h2>
+      <p class="hint">Fix a wrong route and Maxie learns from it. About 200 labels is enough.</p>
+      <ol id="routes" class="plain"></ol>
+      <h2>What happened</h2>
+      <ol id="audit" class="plain"></ol>
+    </section>
+
+    <section id="tab-memory" class="tab" hidden>
+      <p class="hint">What Maxie knows about you: one fact per line, under a heading. Passwords, IDs, health and
+        immigration details are never kept.</p>
+      <textarea id="memory" rows="16" spellcheck="true" aria-label="Memory"></textarea>
+      <div class="actions"><button id="save-memory" class="primary">Save memory</button></div>
+      <p id="memory-note" class="hint"></p>
+      <h2>Where each fact came from</h2>
+      <input id="memory-q" type="search" placeholder="Search, like: what did I decide about the move?" autocomplete="off">
+      <div id="facts" class="facts thread"></div>
+    </section>
+
+    <section id="tab-settings" class="tab" hidden>
+      <div class="section">
+        <h2>Setup</h2>
+        <p class="hint">Keys, Google accounts, the passcode, app tokens and the status of every part live on the full
+          Settings page.</p>
+        <div class="actions"><a class="primary-link" href="/settings.html">Open Settings and status</a></div>
+        <p id="health" class="hint"></p>
+      </div>
+      <div class="section">
+        <h2>Spend</h2>
+        <p id="budget-line" class="hint"></p>
+        <label>Monthly budget in dollars <input id="budget" type="number" min="1" step="1"></label>
+      </div>
+      <div class="section">
+        <h2>Quiet and voice</h2>
+        <label>Quiet hours <span class="row"><input id="quiet-start" type="time"> <span class="hint">to</span> <input id="quiet-end" type="time"></span></label>
+        <label class="row"><input id="muted" type="checkbox"> Mute briefs and alerts</label>
+        <label class="row"><input id="speak" type="checkbox" checked> Speak replies</label>
+        <label>Maxie's look <select id="look"></select></label>
+      </div>
+      <div class="section">
+        <h2>Models</h2>
+        <label class="row"><input id="auto-upgrade" type="checkbox" checked> Auto-upgrade: a daily check for a newer Haiku, Sonnet or Opus</label>
+        <p id="models-line" class="hint"></p>
+        <div class="actions"><button id="pin-models" type="button">Pin current models</button></div>
+      </div>
+      <div class="section">
+        <h2>Rules</h2>
+        <p class="hint">For each action: allow, ask me, or block. Anything that leaves the Mac asks by default.</p>
+        <div id="rules"></div>
+      </div>
+      <div class="section">
+        <h2>Speed</h2>
+        <p id="speed-line" class="hint"></p>
+      </div>
+      <div class="section">
+        <h2>Backups</h2>
+        <p id="backup-line" class="hint"></p>
+      </div>
+      <div class="actions">
+        <button id="save-settings" class="primary">Save settings</button>
+        <button id="enable-push">Turn on notifications</button>
+        <button id="stop" class="danger">Stop everything</button>
+      </div>
+    </section>
+  </main>
+  <script src="/vendor/three.min.js"></script>
+  <script src="/maxie-fur.js"></script>
+  <script src="/maxie.js"></script>
+  <script src="/mascot.js"></script>
+  <script src="/character.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

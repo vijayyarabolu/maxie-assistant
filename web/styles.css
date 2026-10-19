@@ -1,0 +1,206 @@
+/* "Light, not windows": Claude is light, not a window. No cards, borders, pills or
+   bubbles: words float on a field of light that falls off to night (daylight in light mode). The Thread,
+   a living line left of the conversation, is the only thing that moves on its own.
+   Red-green safe: ember, gold and signal-blue carry meaning, red only for errors, never green. */
+:root {
+  --night: #0E0B14; --dusk: #2A1B3D; --ember: #FF7A59; --gold: #FFC46B; --rose: #F2A1B5; --mist: #F5EFE6;
+  --signal: #5AB4FF; --red: #FF4D4D;
+  --words: var(--mist); --his: var(--rose); --thread: var(--ember); --ok: var(--signal); --bad: var(--red);
+  --bg: var(--night);
+  --quiet: color-mix(in srgb, var(--words) 55%, transparent);
+  --faint: color-mix(in srgb, var(--words) 45%, transparent);
+  --hair: color-mix(in srgb, var(--words) 14%, transparent);
+  --field: radial-gradient(130% 70% at 18% -8%, rgba(255, 196, 107, .55), rgba(255, 122, 89, .32) 18%,
+           rgba(42, 27, 61, .9) 46%, var(--night) 82%);
+  --spring: cubic-bezier(.3, 1.25, .5, 1);  /* ~ response .35, damping .8 */
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --words: #1A1422; --his: #A8456A; --thread: #E0603F; --ok: #1F6FB8; --bad: #D12F2F; --bg: var(--mist);
+    --field: radial-gradient(130% 70% at 18% -8%, rgba(255, 196, 107, .85), rgba(255, 196, 107, .4) 22%,
+             var(--mist) 62%);
+    color-scheme: light;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { background: var(--bg); }
+body { margin: 0; min-height: 100vh; font: 15px/22px -apple-system, "SF Pro Text", system-ui, sans-serif; color: var(--words);
+       background: transparent; padding-bottom: env(safe-area-inset-bottom); -webkit-font-smoothing: antialiased; }
+body::before { content: ""; position: fixed; inset: 0; background: var(--field); pointer-events: none; z-index: -1; }
+::selection { background: color-mix(in srgb, var(--gold) 45%, transparent); }
+svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* The name row: Maxie, "Claude", and a quiet status word. */
+header.sky { display: flex; align-items: center; gap: 12px; padding: calc(env(safe-area-inset-top) + 12px) 16px 4px; }
+header .title { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+h1 { margin: 0; font: 600 22px/28px -apple-system, "SF Pro Display", system-ui, sans-serif; letter-spacing: -0.5px; }
+h2 { margin: 32px 0 8px; font-size: 15px; font-weight: 600; }
+h2:first-child { margin-top: 16px; }
+h3 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
+.hint { color: var(--quiet); font-size: 12px; line-height: 18px; margin: 4px 0; white-space: pre-line; }
+.hint.bad { color: var(--bad); }
+
+/* Status: a word, coloured only as a second signal. */
+.status { font-size: 12px; line-height: 16px; color: var(--quiet); }
+.s-blue { color: var(--ok); } .s-orange { color: var(--thread); } .s-red { color: var(--bad); } .s-grey { color: var(--quiet); }
+
+/* Tabs: words. The one you're on is in full words colour, the others at 45%. */
+nav.tabs { display: flex; gap: 24px; padding: 4px 16px 0; max-width: 720px; margin: 0 auto; }
+nav.tabs button { background: none; border: 0; padding: 8px 0; margin: 0; font: inherit; color: var(--faint); cursor: pointer;
+                  transition: color .2s; }
+nav.tabs button[aria-selected="true"] { color: var(--words); }
+nav.tabs button.end { margin-left: auto; }
+
+main { padding: 8px 16px 140px; max-width: 720px; margin: 0 auto; }
+.tab > * { max-width: 72ch; }
+
+/* Words as buttons: no fill, no border. Primary is ember, danger is red; both stay words. */
+button { font: inherit; background: none; border: 0; padding: 8px 0; margin: 0 16px 0 0; color: var(--words); cursor: pointer;
+         min-height: 44px; transition: color .2s, opacity .2s; }
+button:hover { color: var(--thread); }
+button:active { opacity: .6; }
+button.primary { color: var(--thread); font-weight: 600; }
+button.danger { color: var(--bad); }
+button.small { font-size: 12px; min-height: 0; padding: 0; color: var(--quiet); }
+.actions { display: flex; flex-wrap: wrap; align-items: center; }
+
+/* Inputs: one hairline under the words, no box. */
+label { display: block; margin: 12px 0; }
+label.row, span.row { display: flex; gap: 8px; align-items: center; }
+input, textarea, select { font: inherit; color: var(--words); background: transparent; border: 0; border-bottom: 1px solid var(--hair);
+                          border-radius: 0; padding: 8px 0; outline: none; caret-color: var(--thread); }
+input:focus, textarea:focus, select:focus { border-bottom-color: color-mix(in srgb, var(--thread) 70%, transparent); }
+select { -webkit-appearance: none; appearance: none; padding-right: 16px; cursor: pointer;
+         background: linear-gradient(45deg, transparent 50%, var(--quiet) 50%) right 4px center / 5px 5px no-repeat,
+                     linear-gradient(-45deg, transparent 50%, var(--quiet) 50%) right 0 center / 5px 5px no-repeat; }
+select option { background: var(--bg); color: var(--words); }
+input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--thread); margin: 0; border: 0; }
+label > input:not([type=checkbox]), label > select { display: block; width: 100%; margin-top: 2px; }
+span.row input { flex: 1; }
+textarea { width: 100%; font-size: 15px; line-height: 22px; border-bottom: 0; resize: vertical; padding: 0 0 0 16px;
+           border-left: 1px solid var(--hair); }
+input::placeholder, textarea::placeholder { color: var(--quiet); }
+
+/* ---- The Thread ----
+   Idle: faint, breathing every 4 s. Listening: brighter and wider. Thinking: a pulse travels down.
+   Speaking: the current reply's knot glows. Every turn is a knot on the line. */
+.thread { position: relative; padding-left: 24px; }
+.thread::before { content: ""; position: absolute; left: 5px; top: 4px; bottom: 4px; width: 1.5px; border-radius: 1px;
+                  background: linear-gradient(var(--gold), var(--thread) 30%, color-mix(in srgb, var(--thread) 30%, transparent));
+                  opacity: .35; animation: breathe 4s ease-in-out infinite; transition: width .35s var(--spring), opacity .35s; }
+.thread::after { content: ""; position: absolute; left: 1px; width: 10px; height: 40px; top: 0; border-radius: 5px; opacity: 0;
+                 background: radial-gradient(closest-side, var(--gold), transparent); pointer-events: none; }
+body[data-mode="listening"] .thread::before { width: 3px; left: 4px; opacity: .9; animation: none; }
+body[data-mode="thinking"] .thread::before { opacity: .55; animation: none; }
+body[data-mode="thinking"] .thread::after { animation: travel 1.6s ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { opacity: .25; } 50% { opacity: .5; } }
+@keyframes travel { 0% { top: 0; opacity: 0; } 15% { opacity: .9; } 85% { opacity: .9; } 100% { top: calc(100% - 40px); opacity: 0; } }
+
+.knot { position: relative; }
+.knot::before { content: ""; position: absolute; left: -22px; top: 8px; width: 7px; height: 7px; border-radius: 50%;
+                background: var(--bg); border: 1.5px solid color-mix(in srgb, var(--thread) 75%, transparent); }
+.knot.small::before { width: 5px; height: 5px; left: -21px; top: 9px; }
+.knot.now::before { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 10px 3px color-mix(in srgb, var(--gold) 60%, transparent); }
+.knot.failed::before { border-color: var(--bad); }
+.knot.glow::before { animation: remembered 1.6s ease-out 1; }
+@keyframes remembered { 0% { box-shadow: 0 0 0 0 transparent; } 30% { box-shadow: 0 0 14px 5px var(--gold); background: var(--gold); } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+/* ---- Conversation: Claude's words mist, left; his words rose, medium, right. No bubbles. ---- */
+#log { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+#log li { position: relative; white-space: pre-wrap; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
+#log li.user { text-align: right; color: var(--his); font-weight: 500; padding-left: 15%; }
+#log li.assistant { align-self: stretch; }
+#log li .meta:empty { display: none; }
+#log li .meta { display: block; font-size: 12px; line-height: 18px; color: var(--quiet); }
+#log li .copy { position: absolute; top: 100%; left: 0; font-size: 12px; line-height: 16px; min-height: 0; padding: 0; margin: 0; color: var(--quiet); opacity: 0; transition: opacity .2s; }
+#log li.user .copy { left: auto; right: 0; }
+#log li:hover .copy, #log li.picked .copy, #log li .copy:focus-visible { opacity: 1; }
+#log li .copy:hover { color: var(--thread); }
+
+/* A confirmation: words and two word buttons, marked by a gold knot. */
+.confirm { margin: 8px 0 16px; }
+.confirm .head { font-weight: 600; color: var(--thread); }
+.confirm .warn { color: var(--bad); font-size: 12px; line-height: 18px; margin-top: 4px; }
+.confirm .actions { margin-top: 2px; }
+.card-list:empty::before { content: "Nothing waiting."; position: static; display: block; width: auto; background: none;
+                           animation: none; opacity: 1; color: var(--quiet); margin-left: -24px; }
+
+/* ---- Composer: one line on the light, no box. Return sends. ---- */
+#composer { position: fixed; left: 0; right: 0; bottom: 0; padding: 24px 16px calc(12px + env(safe-area-inset-bottom));
+            background: linear-gradient(transparent, var(--bg) 45%); }
+#composer .line { display: flex; align-items: center; gap: 12px; max-width: 688px; margin: 0 auto; }
+#composer input { flex: 1; border: 0; padding: 10px 0; font-size: 16px; /* 16 px stops iOS zooming in */ }
+#composer input:focus { border: 0; }
+#composer .hint { max-width: 688px; margin: 0 auto; transition: opacity .6s; }
+#composer .hint.gone { opacity: 0; }
+.mic { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: 0 -12px 0 0; padding: 0;
+       color: var(--quiet); -webkit-user-select: none; user-select: none; touch-action: none; }
+.mic:hover, .mic.on { color: var(--thread); }
+.mic.on svg { filter: drop-shadow(0 0 6px var(--thread)); }
+
+/* Maxie (web/mascot.js), live from /api/events. */
+.bot { width: 56px; height: 94px; margin: -16px 0 -12px; flex: none; }
+.bot-fallback { width: 56px; height: 94px; background: url(/icon-192.png) center/contain no-repeat; }
+
+/* ---- Activity, Memory, Settings: quiet lists on the Thread ---- */
+ol.plain { list-style: none; margin: 0; padding: 0; }
+ol.plain:empty { display: none; }
+ol.plain li { padding: 6px 0; }
+ol.plain select { margin-left: 4px; padding: 2px 16px 2px 0; }
+.task { padding: 6px 0; }
+.task .head { cursor: pointer; }
+.task .what { font-weight: 500; }
+.task .meta, .fact .meta, .audit-when { font-size: 12px; line-height: 18px; color: var(--quiet); }
+.task .word-running, .task .word-paused, .task .word-stopped { color: var(--thread); }
+.task .word-error { color: var(--bad); }
+.task .steps { margin: 4px 0 0; padding-left: 24px; position: relative; font-size: 12px; line-height: 18px; color: var(--quiet); }
+.task .steps::before { content: ""; position: absolute; left: 9px; top: 6px; bottom: 6px; width: 1px; background: var(--hair); }
+.task .steps .knot::before { left: -18px; top: 6px; }
+.task .reply { margin-top: 4px; color: var(--quiet); white-space: pre-wrap; }
+.task:not(.open) .what, .task:not(.open) .reply { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task:not(.open) .reply, .task:not(.open) .steps { display: none; }
+.fact { padding: 6px 0; }
+#memory-q { width: 100%; margin: 4px 0 8px; }
+.section { margin: 0 0 32px; }
+.rule { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
+.rule .name { flex: 1; }
+.rule .name small { display: block; color: var(--quiet); font-size: 12px; line-height: 18px; }
+.rule select { border-bottom: 0; color: var(--thread); }
+.rule-group { margin: 16px 0 0; color: var(--quiet); font-size: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* The pulse stops, the glow stays. */
+  .thread::before { animation: none; opacity: .4; }
+  body[data-mode="thinking"] .thread::after { animation: none; opacity: .7; top: calc(100% - 40px); }
+  .knot.glow::before { animation: none; background: var(--gold); }
+  *, *::before, *::after { transition: none !important; }
+}
+#tab-chat > .thread + .actions { margin-top: 24px; }
+
+/* Settings page: the status list, numbered steps, the one-time token. Still words on light, no boxes. */
+body.settings-page header.sky { padding-bottom: 0; }
+a { color: var(--thread); }
+a.back { color: var(--quiet); font-size: 13px; text-decoration: none; }
+nav.jump { display: flex; flex-wrap: wrap; gap: 16px; padding: 8px 16px 0; max-width: 720px; margin: 0 auto; font-size: 13px; }
+nav.jump a { color: var(--faint); text-decoration: none; }
+nav.jump a:hover { color: var(--words); }
+.banner { margin: 8px 0 0; color: var(--ok); white-space: pre-line; }
+.banner.bad { color: var(--bad); }
+.status-list .item { padding: 8px 0; border-bottom: 1px solid var(--hair); }
+.item-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.item-name { font-weight: 500; }
+.item-head .status::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+                             margin-right: 6px; background: currentColor; vertical-align: 1px; }
+.item-head button.small { margin-left: auto; color: var(--thread); }
+.item .hint { margin: 2px 0 0; }
+ol.steps { margin: 8px 0 12px; padding-left: 20px; color: var(--quiet); font-size: 13px; line-height: 20px; }
+ol.steps li { margin: 4px 0; }
+.account { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 6px 0; }
+.account button.small { color: var(--thread); }
+.once { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; overflow-wrap: anywhere;
+        white-space: pre-line; color: var(--words); }
+.section h3 { margin-top: 20px; }
+a.primary-link { color: var(--thread); font-weight: 600; text-decoration: none; padding: 8px 0; }
+body.settings-page p.hint, body.settings-page .banner { white-space: normal; }
+body.settings-page header.sky, body.settings-page nav.jump { max-width: 720px; margin: 0 auto; }

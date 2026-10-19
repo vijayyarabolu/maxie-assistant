@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Maxie</title>
+  <!-- The live bot alone, transparent. Used by the Mac panel (WKWebView) and by scripts/render_mascot.py.
+       Query: ?state=idle&character=maxie&custom={"fur":"mochi"}&framing=body&fps=30&floor=0&interactive=1
+       (character=classic draws the Classic robot; look= picks its colours.)
+       Control from the host: window.bot.setState("think"), window.bot.setCustom({fur: "sky"}), window.bot.stop(). -->
+  <style>
+    html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+    canvas { display: block; width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <canvas id="bot" aria-label="Maxie bot"></canvas>
+  <script src="/vendor/three.min.js"></script>
+  <script src="/maxie-fur.js"></script>
+  <script src="/maxie.js"></script>
+  <script src="/mascot.js"></script>
+  <script src="/character.js"></script>
+  <script>
+    const q = new URLSearchParams(location.search);
+    let custom = {};
+    try { custom = JSON.parse(q.get("custom") || "{}"); } catch { /* bad param: the default look */ }
+    window.bot = MaxieBots.create(document.getElementById("bot"), {
+      character: q.get("character") || "maxie",
+      look: q.get("character") === "classic" ? (q.get("look") || "sunset") : custom,
+      framing: q.get("framing") || "body",
+      floor: q.get("floor") === "1",
+      interactive: q.get("interactive") !== "0",
+      maxFps: Number(q.get("fps") || 30),
+    });
+    bot.setState(q.get("state") || "idle");
+    bot.start();
+  </script>
+</body>
+</html>
