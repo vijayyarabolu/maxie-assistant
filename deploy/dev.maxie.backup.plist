@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Nightly 03:00: encrypted backup of Maxie + jobhunt + resumegen data, then a test restore. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>dev.maxie.backup</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__PYTHON__</string>
+    <string>-m</string>
+    <string>maxie.cli</string>
+    <string>backup</string>
+    <string>--verify</string>
+    <string>--reason</string>
+    <string>nightly</string>
+  </array>
+  <key>WorkingDirectory</key><string>__REPO__</string>
+  <key>StartCalendarInterval</key>
+  <dict><key>Hour</key><integer>3</integer><key>Minute</key><integer>0</integer></dict>
+  <key>StandardOutPath</key><string>__LOGS__/backup.log</string>
+  <key>StandardErrorPath</key><string>__LOGS__/backup.err.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>MAXIE_DATA</key><string>__HOME__/.maxie</string>
+    <key>PYTHONPATH</key><string>__SITE__</string>
+    <key>PATH</key><string>__HOME__/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+</dict>
+</plist>

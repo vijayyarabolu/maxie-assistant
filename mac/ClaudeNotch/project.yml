@@ -1,0 +1,85 @@
+# XcodeGen spec. On the Mac: brew install xcodegen && xcodegen && open ClaudeNotch.xcodeproj
+name: ClaudeNotch
+options:
+  bundleIdPrefix: dev.maxie
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_HARDENED_RUNTIME: YES
+    # The installed Maxie. make notch-test overrides both: the tests run their own copy, which macOS never mistakes
+    # for the real app (a test host with the real bundle id and an ad-hoc signature knocked its permissions off).
+    MAXIE_BUNDLE_ID: dev.maxie.notch
+    MAXIE_NAME: Maxie
+targets:
+  ClaudeNotch:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources
+        excludes: ["App/Info.plist", "App/*.entitlements"]
+      # The pre-rendered loops from scripts/render_mascot.py: Maxie (Mochi) as the folder "mascot"
+      # (keeps <state>/2x/NNN.png). The app reads meta.json, 2x/ and noeyes/2x/ only.
+      - path: ../../assets/mascot
+        type: folder
+        buildPhase: resources
+      # The Classic robot (optional look, Settings › Maxie), same layout.
+      - path: ../../assets/mascot-classic
+        type: folder
+        buildPhase: resources
+      # Maxie as the app icon (scripts/make_icons.py), so Finder and notifications show him.
+      - path: Resources/AppIcon.icns
+        buildPhase: resources
+    info:
+      path: Sources/App/Info.plist
+      properties:
+        LSUIElement: true                 # menu-bar app: no Dock icon
+        CFBundleDisplayName: Maxie
+        CFBundleIconFile: AppIcon
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true   # the hub is http://127.0.0.1
+        NSMicrophoneUsageDescription: Maxie listens for "Hey Max" on this Mac. Nothing leaves the Mac before the wake word.
+        NSScreenCaptureUsageDescription: "Only when you ask (what's on my screen, ⌥⇧S) one screenshot goes to Maxie with your question. Never in the background."
+        NSCalendarsFullAccessUsageDescription: Maxie reads and adds your events on this Mac, so "what's on my calendar" works without Google.
+        NSRemindersFullAccessUsageDescription: Maxie reads and adds your reminders on this Mac.
+        NSContactsUsageDescription: Maxie uses names from Contacts for "text Riley" and to say who wrote to you. They stay on this Mac.
+        NSLocationWhenInUseUsageDescription: Maxie puts your city in About me for weather and the time. Your location never leaves the Mac.
+        NSLocationUsageDescription: Maxie puts your city in About me for weather and the time. Your location never leaves the Mac.
+        NSAppleEventsUsageDescription: Maxie works in Notes, Reminders, Messages, Mail and Music for you, in the background. Sending anything always waits for your OK.
+    dependencies:
+      - sdk: libsqlite3.tbd   # the Apple bridge reads chat.db read-only
+    entitlements:
+      path: Sources/App/ClaudeNotch.entitlements
+      properties:
+        com.apple.security.app-sandbox: false   # needs the login Keychain item and 127.0.0.1; not shipped to the store
+        com.apple.security.device.audio-input: true
+        com.apple.security.automation.apple-events: true          # hardened runtime: Notes, Reminders, Messages, Mail, Music
+        com.apple.security.personal-information.calendars: true   # EventKit (events and reminders)
+        com.apple.security.personal-information.addressbook: true # Contacts
+        com.apple.security.personal-information.location: true    # About me › City
+    scheme:
+      testTargets: [ClaudeNotchTests]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(MAXIE_BUNDLE_ID)   # stable: TCC grants and the Keychain are keyed on it
+        PRODUCT_NAME: $(MAXIE_NAME)
+        PRODUCT_MODULE_NAME: ClaudeNotch   # tests import it by this name
+        ENABLE_DEBUG_DYLIB: NO             # one binary, so the stable re-sign covers all the code
+        CODE_SIGN_STYLE: Automatic
+  ClaudeNotchTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [Tests]
+    dependencies:
+      - target: ClaudeNotch
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.maxie.notch.unit-tests
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/$(MAXIE_NAME).app/Contents/MacOS/$(MAXIE_NAME)   # the tests' own copy of the app
+        BUNDLE_LOADER: $(TEST_HOST)
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Automatic

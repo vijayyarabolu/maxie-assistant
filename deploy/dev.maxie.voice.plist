@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- "Hey Max" on the Mac: mic -> local VAD + Whisper -> hub -> Kokoro. First start asks for the
+     Microphone (python3.12): click Allow. Installed by deploy/install.sh voice. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>dev.maxie.voice</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__PYTHON__</string>
+    <string>-m</string>
+    <string>maxie.voice</string>
+  </array>
+  <key>WorkingDirectory</key><string>__REPO__</string>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>10</integer>
+  <key>StandardOutPath</key><string>__LOGS__/voice.log</string>
+  <key>StandardErrorPath</key><string>__LOGS__/voice.err.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>MAXIE_DATA</key><string>__HOME__/.maxie</string>
+    <key>PYTHONPATH</key><string>__SITE__</string>
+    <key>PATH</key><string>__HOME__/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+</dict>
+</plist>

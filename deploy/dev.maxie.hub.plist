@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Template, rendered by deploy/install.sh. __PYTHON__ is the venv's real interpreter (outside ~/Documents:
+     launchd cannot spawn a program inside Documents, macOS folder protection); the repo is the working
+     directory so `-m maxie...` imports from it, and PYTHONPATH adds the venv's packages.
+     First start shows one "python3.12 wants to access your Documents folder" prompt: click Allow. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>dev.maxie.hub</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__PYTHON__</string>
+    <string>-m</string>
+    <string>maxie.hub.api</string>
+  </array>
+  <key>WorkingDirectory</key><string>__REPO__</string>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>10</integer>
+  <key>StandardOutPath</key><string>__LOGS__/hub.log</string>
+  <key>StandardErrorPath</key><string>__LOGS__/hub.err.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>MAXIE_DATA</key><string>__HOME__/.maxie</string>
+    <key>PYTHONPATH</key><string>__SITE__</string>
+    <key>PATH</key><string>__HOME__/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+</dict>
+</plist>
