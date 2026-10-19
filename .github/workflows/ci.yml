@@ -21,7 +21,7 @@ jobs:
         run: .venv/bin/ruff check .
       - name: name audit (everything you see or hear says Maxie)
         run: .venv/bin/python scripts/audit_names.py
-      - name: tests (offline: fakes and mock transports, no network)
+      - name: "tests (offline: fakes and mock transports, no network)"
         run: .venv/bin/python -m pytest -q
       - name: router eval (100 commands, offline; fails below evals/baseline.json)
         run: .venv/bin/python -m maxie.evals --check
