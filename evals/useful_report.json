@@ -1,0 +1,320 @@
+{
+ "n": 40,
+ "passed": 40,
+ "score": 1.0,
+ "results": [
+  {
+   "id": 1,
+   "pass": true,
+   "why": "ok",
+   "tools": []
+  },
+  {
+   "id": 2,
+   "pass": true,
+   "why": "ok",
+   "tools": []
+  },
+  {
+   "id": 3,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "weather"
+   ]
+  },
+  {
+   "id": 4,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "weather"
+   ]
+  },
+  {
+   "id": 5,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "open_app"
+   ]
+  },
+  {
+   "id": 6,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "open_url"
+   ]
+  },
+  {
+   "id": 7,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "open_url"
+   ]
+  },
+  {
+   "id": 8,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "job_search_status"
+   ]
+  },
+  {
+   "id": 9,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "job_search_status"
+   ]
+  },
+  {
+   "id": 10,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "job_search_status"
+   ]
+  },
+  {
+   "id": 11,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "calendar_events"
+   ]
+  },
+  {
+   "id": 12,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "calendar_events"
+   ]
+  },
+  {
+   "id": 13,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "search_email",
+    "search_email"
+   ]
+  },
+  {
+   "id": 14,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "search_email",
+    "read_email"
+   ]
+  },
+  {
+   "id": 15,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "search_email",
+    "draft_email"
+   ]
+  },
+  {
+   "id": 16,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "add_reminder"
+   ]
+  },
+  {
+   "id": 17,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "timer"
+   ]
+  },
+  {
+   "id": 18,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "api_spend"
+   ]
+  },
+  {
+   "id": 19,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "mac_status"
+   ]
+  },
+  {
+   "id": 20,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "clipboard"
+   ]
+  },
+  {
+   "id": 21,
+   "pass": true,
+   "why": "ok",
+   "tools": []
+  },
+  {
+   "id": 22,
+   "pass": true,
+   "why": "ok",
+   "tools": []
+  },
+  {
+   "id": 23,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "find_files",
+    "drive_search"
+   ]
+  },
+  {
+   "id": 24,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "add_note"
+   ]
+  },
+  {
+   "id": 25,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "music"
+   ]
+  },
+  {
+   "id": 26,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "volume"
+   ]
+  },
+  {
+   "id": 27,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "do_not_disturb"
+   ]
+  },
+  {
+   "id": 28,
+   "pass": true,
+   "why": "ok",
+   "tools": []
+  },
+  {
+   "id": 29,
+   "pass": true,
+   "why": "ok",
+   "tools": []
+  },
+  {
+   "id": 30,
+   "pass": true,
+   "why": "ok",
+   "tools": []
+  },
+  {
+   "id": 31,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "code_execution",
+    "web_search",
+    "code_execution",
+    "code_execution"
+   ]
+  },
+  {
+   "id": 32,
+   "pass": true,
+   "why": "ok",
+   "tools": []
+  },
+  {
+   "id": 33,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "draft_message"
+   ]
+  },
+  {
+   "id": 34,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "drive_search"
+   ]
+  },
+  {
+   "id": 35,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "search_email",
+    "create_event"
+   ]
+  },
+  {
+   "id": 36,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "find_job",
+    "queue_resume"
+   ]
+  },
+  {
+   "id": 37,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "mac_status"
+   ]
+  },
+  {
+   "id": 38,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "open_file"
+   ]
+  },
+  {
+   "id": 39,
+   "pass": true,
+   "why": "ok",
+   "tools": []
+  },
+  {
+   "id": 40,
+   "pass": true,
+   "why": "ok",
+   "tools": [
+    "do_not_disturb"
+   ]
+  }
+ ],
+ "cost_usd": 0.1162,
+ "note": "Last run on my Mac on 2026-10-15 with real Claude and fake Google/jobhunt. Reply texts removed from the public copy; scores, grader notes and tools kept."
+}

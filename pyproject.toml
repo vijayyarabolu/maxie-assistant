@@ -1,0 +1,43 @@
+[project]
+name = "maxie"
+version = "0.1.0"
+description = "Maxie: a voice assistant hub for the Mac and iPhone (router cascade, Claude brain with tools, memory, briefs, PWA)."
+requires-python = ">=3.11"
+dependencies = [
+  "anthropic>=1.14",
+  "fastapi>=0.110",
+  "uvicorn>=0.27",
+  "httpx>=0.27",
+  "pywebpush>=2.0",
+  "pyrage>=1.1",
+  "cryptography>=42",  # verifies Google ID tokens on the hub
+]
+
+[project.optional-dependencies]
+# Laya runs as its own local server (see deploy/laya-serve.sh); installing it here is only
+# needed to run that server from this venv.
+laya = ["laya[serve]==0.4.7"]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.5", "pillow>=10", "numpy>=1.26"]
+
+[project.scripts]
+claude-hub = "maxie.hub.api:main"
+maxie = "maxie.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["maxie"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]

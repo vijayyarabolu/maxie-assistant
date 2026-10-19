@@ -1,0 +1,15 @@
+# Lines the name audit (scripts/audit_names.py) lets through: path glob <TAB> regex.
+# The matched words are removed from the line first; anything left that still says an old name fails.
+# The Classic robot is a choice by that name (Settings › Maxie, character=classic).
+*	(?i)classic[ _-]?robot
+# The Classic robot itself: its geometry (antenna, screen face) is what it is.
+web/mascot.js	.*
+# Tests that check an old name is gone or rejected.
+tests/test_voice.py	(?i)hey claude.*# retired
+tests/test_maxie_api.py	(?i)wake_words.*hey claude
+# "Ask my Claude": the words he might say to send a question to his Claude plan (routing, not a name for Maxie).
+tests/test_ask_claude.py	(?i)hey claude, use my plan
+# The audit itself: its pattern, these rules and its tests name the old names on purpose.
+scripts/audit_names.py	.*
+scripts/audit_names.allow	.*
+tests/test_audit_names.py	.*

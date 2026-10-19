@@ -1,0 +1,120 @@
+{"id": 1, "style": "typed", "text": "open spotify", "route": "mac_action", "action": "open_app", "args": {"name": "Spotify"}}
+{"id": 2, "style": "spoken", "text": "Hey Max, open Slack.", "route": "mac_action", "action": "open_app", "args": {"name": "Slack"}}
+{"id": 3, "style": "spoken", "text": "Launch VS Code.", "route": "mac_action", "action": "open_app", "args": {"name": "Visual Studio Code"}}
+{"id": 4, "style": "typed", "text": "open linkedin", "route": "mac_action", "action": "open_url", "args": {"url": "https://www.linkedin.com"}}
+{"id": 5, "style": "spoken", "text": "Can you open Gmail please?", "route": "mac_action", "action": "open_url", "args": {"url": "https://mail.google.com"}}
+{"id": 6, "style": "spoken", "text": "Play some lo-fi beats.", "route": "mac_action", "action": "music", "args": {"command": "play"}}
+{"id": 7, "style": "typed", "text": "play taylor swift", "route": "mac_action", "action": "music", "args": {"command": "play", "query": "taylor swift"}}
+{"id": 8, "style": "spoken", "text": "Pause the music.", "route": "mac_action", "action": "music", "args": {"command": "pause"}}
+{"id": 9, "style": "spoken", "text": "Skip this song.", "route": "mac_action", "action": "music", "args": {"command": "next"}}
+{"id": 10, "style": "typed", "text": "next track", "route": "mac_action", "action": "music", "args": {"command": "next"}}
+{"id": 11, "style": "spoken", "text": "Turn it up.", "route": "mac_action", "action": "volume", "args": {"level": "up"}}
+{"id": 12, "style": "spoken", "text": "Set the volume to 40 percent.", "route": "mac_action", "action": "volume", "args": {"level": "40"}}
+{"id": 13, "style": "typed", "text": "mute", "route": "mac_action", "action": "volume", "args": {"level": "mute"}}
+{"id": 14, "style": "spoken", "text": "It's too loud, turn the volume down.", "route": "mac_action", "action": "volume", "args": {"level": "down"}}
+{"id": 15, "style": "spoken", "text": "Set a 10 minute timer.", "route": "mac_action", "action": "timer", "args": {"minutes": 10}}
+{"id": 16, "style": "spoken", "text": "Hey Max, start a timer for 25 minutes for focus.", "route": "mac_action", "action": "timer", "args": {"minutes": 25}}
+{"id": 17, "style": "typed", "text": "timer 5 min", "route": "mac_action", "action": "timer", "args": {"minutes": 5}}
+{"id": 18, "style": "spoken", "text": "Remind me in 20 minutes to take the laundry out.", "route": "mac_action", "action": "timer", "args": {"minutes": 20}}
+{"id": 19, "style": "spoken", "text": "Could you put on some jazz for me", "route": "mac_action", "action": "music", "args": {"command": "play"}}
+{"id": 20, "style": "spoken", "text": "Turn on do not disturb.", "route": "mac_action", "action": "do_not_disturb", "args": {"on": true}}
+{"id": 21, "style": "spoken", "text": "Remind me to call mom tomorrow at 6.", "route": "mac_action", "action": "add_reminder"}
+{"id": 22, "style": "typed", "text": "find my offer letter pdf", "route": "mac_action", "action": null}
+{"id": 23, "style": "spoken", "text": "How much battery do I have left?", "route": "mac_action", "action": null}
+{"id": 24, "style": "spoken", "text": "Text Jordan that I'm running ten minutes late.", "route": "mac_action", "action": "draft_message"}
+{"id": 25, "style": "spoken", "text": "Make a note: ideas for the portfolio site, add the jobhunt demo.", "route": "mac_action", "action": null}
+{"id": 26, "style": "typed", "text": "what time is it", "route": "quick_question", "action": "time"}
+{"id": 27, "style": "spoken", "text": "What's today's date?", "route": "quick_question", "action": "date"}
+{"id": 28, "style": "typed", "text": "what's 18% of 2450", "route": "quick_question", "action": "math", "args": {"result": "441"}}
+{"id": 29, "style": "spoken", "text": "What is 128 times 46?", "route": "quick_question", "action": "math", "args": {"result": "5,888"}}
+{"id": 30, "style": "typed", "text": "1450/12", "route": "quick_question", "action": "math"}
+{"id": 31, "style": "spoken", "text": "What's the weather like today?", "route": "quick_question", "action": null}
+{"id": 32, "style": "spoken", "text": "Is it going to rain this afternoon?", "route": "quick_question", "action": null}
+{"id": 33, "style": "typed", "text": "what's the capital of australia", "route": "quick_question", "action": null}
+{"id": 34, "style": "spoken", "text": "Who won the World Series last year?", "route": "quick_question", "action": null}
+{"id": 35, "style": "typed", "text": "define idempotent", "route": "quick_question", "action": null}
+{"id": 36, "style": "spoken", "text": "What's the difference between a process and a thread?", "route": "quick_question", "action": null}
+{"id": 37, "style": "spoken", "text": "How many ounces in a cup?", "route": "quick_question", "action": null}
+{"id": 38, "style": "typed", "text": "convert 30 celsius to fahrenheit", "route": "quick_question", "action": null}
+{"id": 39, "style": "spoken", "text": "What time is it in Lisbon right now?", "route": "quick_question", "action": null}
+{"id": 40, "style": "spoken", "text": "Explain what a vector database is in one line.", "route": "quick_question", "action": null}
+{"id": 41, "style": "spoken", "text": "What's on my calendar today?", "route": "calendar", "action": null}
+{"id": 42, "style": "typed", "text": "do i have any meetings tomorrow", "route": "calendar", "action": null}
+{"id": 43, "style": "spoken", "text": "When is my next meeting?", "route": "calendar", "action": null}
+{"id": 44, "style": "spoken", "text": "Am I free Thursday afternoon?", "route": "calendar", "action": null}
+{"id": 45, "style": "spoken", "text": "Add lunch with Jordan on Saturday at 1 to my calendar.", "route": "calendar", "action": null}
+{"id": 46, "style": "typed", "text": "move my 3pm standup to 4", "route": "calendar", "action": null}
+{"id": 47, "style": "spoken", "text": "What does my week look like?", "route": "calendar", "action": null}
+{"id": 48, "style": "typed", "text": "block 2 hours friday morning for leetcode", "route": "calendar", "action": null}
+{"id": 49, "style": "spoken", "text": "Who's in my 2 o'clock call?", "route": "calendar", "action": null}
+{"id": 50, "style": "spoken", "text": "Cancel the dentist appointment on my calendar.", "route": "calendar", "action": null}
+{"id": 51, "style": "typed", "text": "any events this weekend", "route": "calendar", "action": null}
+{"id": 52, "style": "spoken", "text": "Schedule a call with Riley next Tuesday at 10.", "route": "calendar", "action": null}
+{"id": 53, "style": "spoken", "text": "Any important emails?", "route": "email", "action": null}
+{"id": 54, "style": "typed", "text": "check my inbox", "route": "email", "action": null}
+{"id": 55, "style": "spoken", "text": "Did Globex reply to my email?", "route": "email", "action": null}
+{"id": 56, "style": "spoken", "text": "Read me the latest email from my landlord.", "route": "email", "action": null}
+{"id": 57, "style": "typed", "text": "draft a reply to Morgan saying thanks, Tuesday works", "route": "email", "action": null}
+{"id": 58, "style": "spoken", "text": "How many unread emails do I have?", "route": "email", "action": null}
+{"id": 59, "style": "spoken", "text": "Send an email to Mark saying I'll send the slides tonight.", "route": "email", "action": null}
+{"id": 60, "style": "typed", "text": "search my mail for the comcast bill", "route": "email", "action": null}
+{"id": 61, "style": "spoken", "text": "Forward the bank statement email to Jordan.", "route": "email", "action": null}
+{"id": 62, "style": "spoken", "text": "What did the newsletter from TLDR say today?", "route": "email", "action": null}
+{"id": 63, "style": "typed", "text": "delete all the promo emails from today", "route": "email", "action": null}
+{"id": 64, "style": "spoken", "text": "Write back to the Soylent recruiter email and say I'm available Monday.", "route": "email", "action": null}
+{"id": 65, "style": "spoken", "text": "Any new jobs today?", "route": "jobhunt", "action": null}
+{"id": 66, "style": "typed", "text": "how many applications did i send this week", "route": "jobhunt", "action": null}
+{"id": 67, "style": "spoken", "text": "Which follow-ups are due?", "route": "jobhunt", "action": null}
+{"id": 68, "style": "spoken", "text": "Make me a resume for the Vandelay ML engineer role.", "route": "jobhunt", "action": null}
+{"id": 69, "style": "typed", "text": "show sponsor friendly data engineer jobs in texas", "route": "jobhunt", "action": null}
+{"id": 70, "style": "spoken", "text": "Did any recruiters reach out?", "route": "jobhunt", "action": null}
+{"id": 71, "style": "spoken", "text": "Is my resume for Cyberdyne ready?", "route": "jobhunt", "action": null}
+{"id": 72, "style": "typed", "text": "add the snowflake job to my tracker", "route": "jobhunt", "action": null}
+{"id": 73, "style": "spoken", "text": "When is my interview with Wayne Enterprises?", "route": "jobhunt", "action": null}
+{"id": 74, "style": "spoken", "text": "What jobs did jobhunt find overnight?", "route": "jobhunt", "action": null}
+{"id": 75, "style": "typed", "text": "how far am i from my application goal today", "route": "jobhunt", "action": null}
+{"id": 76, "style": "spoken", "text": "Pull up the JD for the Netflix data scientist position.", "route": "jobhunt", "action": null}
+{"id": 77, "style": "spoken", "text": "Write a cover letter for the OpenTable job.", "route": "jobhunt", "action": null}
+{"id": 78, "style": "spoken", "text": "Any rejections this week?", "route": "jobhunt", "action": null}
+{"id": 79, "style": "spoken", "text": "Check my calendar for Friday and then draft an email to Riley suggesting a time.", "route": "multi_step", "action": null}
+{"id": 80, "style": "typed", "text": "research Cyberdyne, summarize their ML platform and prep me 5 interview questions", "route": "multi_step", "action": null}
+{"id": 81, "style": "spoken", "text": "Fix the failing tests in the jobhunt repo.", "route": "multi_step", "action": null}
+{"id": 82, "style": "spoken", "text": "Think hard about whether I should take a contract role or keep holding out for full time.", "route": "multi_step", "action": null}
+{"id": 83, "style": "typed", "text": "plan my week: 10 applications a day, two leetcode sessions, gym three times", "route": "multi_step", "action": null}
+{"id": 84, "style": "spoken", "text": "Go through my unread email and make a list of anything that needs a reply.", "route": "multi_step", "action": null}
+{"id": 85, "style": "typed", "text": "write a python script that renames all my screenshots by date", "route": "multi_step", "action": null}
+{"id": 86, "style": "spoken", "text": "Compare the Vandelay and Pied Piper offers and tell me which pays better after tax.", "route": "multi_step", "action": null}
+{"id": 87, "style": "spoken", "text": "Find the three best new jobs, queue resumes for them, and add follow-up reminders.", "route": "multi_step", "action": null}
+{"id": 88, "style": "typed", "text": "refactor the resumegen pdf export and open a pull request", "route": "multi_step", "action": null}
+{"id": 89, "style": "spoken", "text": "Hey, how are you?", "route": "chitchat", "action": null}
+{"id": 90, "style": "spoken", "text": "Thanks, that was helpful.", "route": "chitchat", "action": null}
+{"id": 91, "style": "typed", "text": "good morning claude", "route": "chitchat", "action": null}
+{"id": 92, "style": "spoken", "text": "I'm so tired of this job search.", "route": "chitchat", "action": null}
+{"id": 93, "style": "spoken", "text": "Tell me a joke.", "route": "chitchat", "action": null}
+{"id": 94, "style": "typed", "text": "ugh rough day", "route": "chitchat", "action": null}
+{"id": 95, "style": "spoken", "text": "Remember that Jordan's birthday is March 3rd.", "route": "memory", "action": "remember"}
+{"id": 96, "style": "typed", "text": "forget the thing about the gym", "route": "memory", "action": "forget"}
+{"id": 97, "style": "spoken", "text": "What do you know about me?", "route": "memory", "action": "show"}
+{"id": 98, "style": "spoken", "text": "Max, stop.", "route": "control", "action": "stop"}
+{"id": 99, "style": "spoken", "text": "Brief me.", "route": "control", "action": "brief"}
+{"id": 100, "style": "typed", "text": "mute notifications", "route": "control", "action": "mute_proactive"}
+{"id": 101, "style": "spoken", "text": "Did anyone from Vandelay get back to me about the application?", "route": "jobhunt", "action": null}
+{"id": 102, "style": "typed", "text": "which jobs did i apply to yesterday", "route": "jobhunt", "action": null}
+{"id": 103, "style": "spoken", "text": "Queue a resume for the Tyrell data engineer posting.", "route": "jobhunt", "action": null}
+{"id": 104, "style": "spoken", "text": "How many recruiters replied this week?", "route": "jobhunt", "action": null}
+{"id": 105, "style": "typed", "text": "summarize the email from my landlord", "route": "email", "action": null}
+{"id": 106, "style": "spoken", "text": "Is there anything in my inbox I need to answer today?", "route": "email", "action": null}
+{"id": 107, "style": "spoken", "text": "Reply to Morgan and say Wednesday morning works.", "route": "email", "action": null}
+{"id": 108, "style": "typed", "text": "what's my day look like tomorrow", "route": "calendar", "action": null}
+{"id": 109, "style": "spoken", "text": "Do I have time for a run before my first meeting?", "route": "calendar", "action": null}
+{"id": 110, "style": "spoken", "text": "Put a reminder on my calendar to renew the car registration Friday.", "route": "calendar", "action": null}
+{"id": 111, "style": "spoken", "text": "Open Spotify and play my focus playlist.", "route": "multi_step", "action": null}
+{"id": 112, "style": "typed", "text": "launch notion", "route": "mac_action", "action": "open_app", "args": {"name": "Notion"}}
+{"id": 113, "style": "spoken", "text": "Set a timer for 15 minutes.", "route": "mac_action", "action": "timer", "args": {"minutes": 15}}
+{"id": 114, "style": "spoken", "text": "Turn the volume down a bit.", "route": "mac_action", "action": "volume", "args": {"level": "down"}}
+{"id": 115, "style": "spoken", "text": "Find the screenshot I took this morning.", "route": "mac_action", "action": null}
+{"id": 116, "style": "spoken", "text": "I finally finished the system design prep.", "route": "chitchat", "action": null}
+{"id": 117, "style": "typed", "text": "lol you're funny", "route": "chitchat", "action": null}
+{"id": 118, "style": "spoken", "text": "I don't feel like applying to anything today.", "route": "chitchat", "action": null}
+{"id": 119, "style": "spoken", "text": "Look at my week, find two free hours, and block them for applications.", "route": "multi_step", "action": null}
+{"id": 120, "style": "typed", "text": "read the AcmeAI email then draft a reply with three times that work", "route": "multi_step", "action": null}

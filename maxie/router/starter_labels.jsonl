@@ -1,0 +1,78 @@
+{"text": "open notion", "route": "mac_action"}
+{"text": "launch the terminal", "route": "mac_action"}
+{"text": "Could you bring up Safari?", "route": "mac_action"}
+{"text": "play my discover weekly", "route": "mac_action"}
+{"text": "Put on something chill.", "route": "mac_action"}
+{"text": "stop the song", "route": "mac_action"}
+{"text": "go to the previous track", "route": "mac_action"}
+{"text": "make it louder", "route": "mac_action"}
+{"text": "volume 70", "route": "mac_action"}
+{"text": "Set a timer for 45 minutes.", "route": "mac_action"}
+{"text": "start a 3 minute timer for tea", "route": "mac_action"}
+{"text": "Find the PDF of my transcript.", "route": "mac_action"}
+{"text": "remind me to pay the electric bill on Friday", "route": "mac_action"}
+{"text": "How's my wifi connection?", "route": "mac_action"}
+{"text": "turn off focus mode", "route": "mac_action"}
+{"text": "Open YouTube.", "route": "mac_action"}
+{"text": "message Riley that I'm on my way", "route": "mac_action"}
+{"text": "take a note that the API key rotation is due", "route": "mac_action"}
+{"text": "how much disk space is free", "route": "mac_action"}
+{"text": "Fire up Xcode.", "route": "mac_action"}
+{"text": "what's the square root of 144", "route": "quick_question"}
+{"text": "How far is the moon?", "route": "quick_question"}
+{"text": "what does ETL stand for", "route": "quick_question"}
+{"text": "Is it cold outside?", "route": "quick_question"}
+{"text": "how do you say thank you in Telugu", "route": "quick_question"}
+{"text": "What year did Python 3 come out?", "route": "quick_question"}
+{"text": "what's a good substitute for buttermilk", "route": "quick_question"}
+{"text": "Who is the CEO of Nvidia?", "route": "quick_question"}
+{"text": "how many miles is a 10k", "route": "quick_question"}
+{"text": "What's the forecast for tomorrow?", "route": "quick_question"}
+{"text": "what's 250 divided by 7", "route": "quick_question"}
+{"text": "Spell necessary.", "route": "quick_question"}
+{"text": "what's my schedule tomorrow", "route": "calendar"}
+{"text": "Do I have anything at 4?", "route": "calendar"}
+{"text": "put a dentist appointment on the 22nd at 9am", "route": "calendar"}
+{"text": "When am I meeting Morgan?", "route": "calendar"}
+{"text": "clear my afternoon", "route": "calendar"}
+{"text": "Is my Friday open?", "route": "calendar"}
+{"text": "what's my first meeting monday", "route": "calendar"}
+{"text": "Push the gym to 7.", "route": "calendar"}
+{"text": "how many meetings this week", "route": "calendar"}
+{"text": "Invite Jordan to dinner Saturday at 8.", "route": "calendar"}
+{"text": "anything new in my email", "route": "email"}
+{"text": "Did my landlord write back?", "route": "email"}
+{"text": "reply to Mark: sounds good", "route": "email"}
+{"text": "Find the email with my flight confirmation.", "route": "email"}
+{"text": "who emailed me this morning", "route": "email"}
+{"text": "Archive the newsletters.", "route": "email"}
+{"text": "email the landlord about the leaking sink", "route": "email"}
+{"text": "What's the last thing Morgan sent me?", "route": "email"}
+{"text": "unsubscribe me from the promo emails", "route": "email"}
+{"text": "Any messages in my inbox from banks?", "route": "email"}
+{"text": "how many jobs did you find today", "route": "jobhunt"}
+{"text": "Any interview invites?", "route": "jobhunt"}
+{"text": "tailor my resume for the Nimbus data engineer job", "route": "jobhunt"}
+{"text": "What's my application count this month?", "route": "jobhunt"}
+{"text": "which companies haven't replied in two weeks", "route": "jobhunt"}
+{"text": "Show me ML jobs that sponsor.", "route": "jobhunt"}
+{"text": "did resumegen finish the AcmeAI resume", "route": "jobhunt"}
+{"text": "Mark the Hooli application as rejected.", "route": "jobhunt"}
+{"text": "what roles are open at Vandelay", "route": "jobhunt"}
+{"text": "How many follow-ups do I owe?", "route": "jobhunt"}
+{"text": "Find my calendar gaps this week and block two of them for applications.", "route": "multi_step"}
+{"text": "read the AcmeAI email, look up the job, and prep me for the screen", "route": "multi_step"}
+{"text": "Write tests for the router module and run them.", "route": "multi_step"}
+{"text": "draft follow-up emails for every company that hasn't replied", "route": "multi_step"}
+{"text": "Analyze my application funnel and tell me where I'm losing.", "route": "multi_step"}
+{"text": "organize my downloads folder by file type", "route": "multi_step"}
+{"text": "Think hard about my system design answer and poke holes in it.", "route": "multi_step"}
+{"text": "debug why the jobhunt scraper is failing on Greenhouse", "route": "multi_step"}
+{"text": "hey buddy", "route": "chitchat"}
+{"text": "Thank you!", "route": "chitchat"}
+{"text": "I got the interview!!", "route": "chitchat"}
+{"text": "i'm exhausted", "route": "chitchat"}
+{"text": "You're the best.", "route": "chitchat"}
+{"text": "good night", "route": "chitchat"}
+{"text": "What's your name?", "route": "chitchat"}
+{"text": "feeling kind of down today", "route": "chitchat"}

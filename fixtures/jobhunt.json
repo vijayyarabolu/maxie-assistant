@@ -1,0 +1,24 @@
+{
+  "_note": "Made-up data shaped like jobhunt / resumegen answers.",
+  "jobs": [
+    {"id": "101", "company": "AcmeAI", "title": "Machine Learning Engineer", "sponsor_friendly": true, "new": true,
+     "url": "https://jobs.example/acmeai/101", "jd": "Build and ship ranking models; Python, PyTorch, feature stores, A/B testing."},
+    {"id": "102", "company": "Nimbus", "title": "Senior Data Engineer", "sponsor_friendly": true, "new": true,
+     "url": "https://jobs.example/nimbus/102", "jd": "Spark, Airflow, dbt, streaming pipelines.", "resume_url": "https://resumegen.local/r/102"},
+    {"id": "103", "company": "Initech", "title": "Data Scientist", "sponsor_friendly": false, "new": true,
+     "url": "https://jobs.example/initech/103", "jd": "Experimentation and forecasting."},
+    {"id": "104", "company": "Hooli", "title": "Applied Scientist", "sponsor_friendly": true, "new": false,
+     "url": "https://jobs.example/hooli/104", "jd": "LLM evaluation."}
+  ],
+  "followups": [
+    {"company": "Hooli", "title": "Applied Scientist", "applied_on": "2026-10-08"},
+    {"company": "Umbrella", "title": "ML Platform Engineer", "applied_on": "2026-10-07"}
+  ],
+  "applications": [
+    {"company": "Nimbus", "date": "2026-10-15"}, {"company": "AcmeAI", "date": "2026-10-15"},
+    {"company": "Hooli", "date": "2026-10-08"}
+  ],
+  "resumes_ready": [
+    {"company": "Nimbus", "title": "Senior Data Engineer", "url": "https://resumegen.local/r/102"}
+  ]
+}

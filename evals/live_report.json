@@ -1,0 +1,211 @@
+{
+ "n": 20,
+ "passed": 20,
+ "score": 1.0,
+ "results": [
+  {
+   "id": 1,
+   "needs": "weather",
+   "pass": true,
+   "why": "used weather",
+   "tools": [
+    "weather"
+   ]
+  },
+  {
+   "id": 2,
+   "needs": "weather",
+   "pass": true,
+   "why": "used weather",
+   "tools": [
+    "weather"
+   ]
+  },
+  {
+   "id": 3,
+   "needs": "web_search",
+   "pass": true,
+   "why": "used web_search_requested, code_execution, web_search, code_execution, web_search, code_execution, web_search",
+   "tools": [
+    "web_search_requested",
+    "code_execution",
+    "web_search",
+    "code_execution",
+    "web_search",
+    "code_execution",
+    "web_search"
+   ]
+  },
+  {
+   "id": 4,
+   "needs": "web_search",
+   "pass": true,
+   "why": "used web_search_requested, code_execution, web_search, code_execution",
+   "tools": [
+    "web_search_requested",
+    "code_execution",
+    "web_search",
+    "code_execution"
+   ]
+  },
+  {
+   "id": 5,
+   "needs": "web_search",
+   "pass": true,
+   "why": "used web_search_requested, code_execution, web_search, code_execution, web_search",
+   "tools": [
+    "web_search_requested",
+    "code_execution",
+    "web_search",
+    "code_execution",
+    "web_search"
+   ]
+  },
+  {
+   "id": 6,
+   "needs": "web_search",
+   "pass": true,
+   "why": "used web_search_requested, code_execution, web_search, code_execution, web_search",
+   "tools": [
+    "web_search_requested",
+    "code_execution",
+    "web_search",
+    "code_execution",
+    "web_search"
+   ]
+  },
+  {
+   "id": 7,
+   "needs": "calendar_events",
+   "pass": true,
+   "why": "used calendar_events",
+   "tools": [
+    "calendar_events"
+   ]
+  },
+  {
+   "id": 8,
+   "needs": "calendar_events",
+   "pass": true,
+   "why": "used calendar_events",
+   "tools": [
+    "calendar_events"
+   ]
+  },
+  {
+   "id": 9,
+   "needs": "search_email",
+   "pass": true,
+   "why": "used search_email, search_email",
+   "tools": [
+    "search_email",
+    "search_email"
+   ]
+  },
+  {
+   "id": 10,
+   "needs": "search_email",
+   "pass": true,
+   "why": "used search_email, search_email",
+   "tools": [
+    "search_email",
+    "search_email"
+   ]
+  },
+  {
+   "id": 11,
+   "needs": "job_search_status",
+   "pass": true,
+   "why": "used job_search_status",
+   "tools": [
+    "job_search_status"
+   ]
+  },
+  {
+   "id": 12,
+   "needs": "job_search_status",
+   "pass": true,
+   "why": "used job_search_status",
+   "tools": [
+    "job_search_status"
+   ]
+  },
+  {
+   "id": 13,
+   "needs": "mac_status",
+   "pass": true,
+   "why": "used mac_status",
+   "tools": [
+    "mac_status"
+   ]
+  },
+  {
+   "id": 14,
+   "needs": "mac_status",
+   "pass": true,
+   "why": "used mac_status",
+   "tools": [
+    "mac_status"
+   ]
+  },
+  {
+   "id": 15,
+   "needs": "clipboard",
+   "pass": true,
+   "why": "used clipboard",
+   "tools": [
+    "clipboard"
+   ]
+  },
+  {
+   "id": 16,
+   "needs": "find_files",
+   "pass": true,
+   "why": "used find_files",
+   "tools": [
+    "find_files"
+   ]
+  },
+  {
+   "id": 17,
+   "needs": "web_search",
+   "pass": true,
+   "why": "used web_search_requested, code_execution, web_search, code_execution",
+   "tools": [
+    "web_search_requested",
+    "code_execution",
+    "web_search",
+    "code_execution"
+   ]
+  },
+  {
+   "id": 18,
+   "needs": "web_search",
+   "pass": true,
+   "why": "used weather",
+   "tools": [
+    "weather"
+   ]
+  },
+  {
+   "id": 19,
+   "needs": "job_search_status",
+   "pass": true,
+   "why": "used job_search_status",
+   "tools": [
+    "job_search_status"
+   ]
+  },
+  {
+   "id": 20,
+   "needs": "weather",
+   "pass": true,
+   "why": "used weather",
+   "tools": [
+    "weather"
+   ]
+  }
+ ],
+ "cost_usd": 0.1517,
+ "note": "Last run on my Mac on 2026-10-15 with real Claude and fake Google/jobhunt. Reply texts removed from the public copy; scores, grader notes and tools kept."
+}
