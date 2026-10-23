@@ -81,3 +81,34 @@ def test_tool_is_registered_read_only(make_services):
     s = make_services()
     t = s.registry.get("claude_code_sessions")
     assert t and t.kind == "read" and not t.risky
+
+
+def test_a_growing_transcript_is_read_from_where_the_last_read_stopped(tmp_path, monkeypatch):
+    # Arrange: the watcher re-parsed a 265 MB transcript every minute
+    f = tmp_path / "-home-alex-code-maxie" / "big.jsonl"
+    write(f, [rec("user", "do GOAL8"), rec("assistant", [{"type": "text", "text": "on it"}])])
+    assert sessions.read_session(f).last_reply == "on it"
+    parsed = []
+    real = sessions.json.loads
+    monkeypatch.setattr(sessions.json, "loads", lambda raw: parsed.append(raw) or real(raw))
+
+    # Act: one more record, then a half-written one
+    with f.open("a") as fh:
+        fh.write(rec("assistant", [{"type": "text", "text": "done"}]) + "\n" + '{"type": "assist')
+    s = sessions.read_session(f)
+
+    # Assert
+    assert s.last_reply == "done" and s.last_prompt == "do GOAL8", "what came before is kept"
+    assert len(parsed) == 2, "only the new lines are parsed"
+    with f.open("a") as fh:
+        fh.write('ant", "message": {"content": [{"type": "text", "text": "finished"}]}}\n')
+    assert sessions.read_session(f).last_reply == "finished", "the half-written line is read once it is whole"
+
+
+def test_a_rewritten_transcript_is_read_again_from_the_start(tmp_path):
+    f = tmp_path / "-home-alex-code-jobhunt" / "x.jsonl"
+    write(f, [rec("user", "first"), rec("assistant", [{"type": "text", "text": "a long first answer " * 5}])])
+    assert sessions.read_session(f).last_prompt == "first"
+    write(f, [rec("user", "second"), rec("assistant", [{"type": "text", "text": "a much longer second answer " * 9}])])
+    s = sessions.read_session(f)
+    assert s.last_prompt == "second" and s.last_reply.startswith("a much longer")

@@ -10,6 +10,7 @@ import pytest
 from test_settings_api import Deps, H, client
 
 from maxie.voice import preview as vp
+from maxie.voice.audio import PEAK_DBFS, SPEECH_DBFS
 
 
 class Engine:
@@ -43,7 +44,8 @@ def test_a_clean_24k_mono_wav_with_soft_edges(tmp_path):
     fade = int(24000 * vp.FADE_S)
     assert abs(x[0]) < 0.01 and abs(x[-1]) < 0.01, "starts and ends at silence: no click"
     assert np.abs(x[:fade]).max() < np.abs(x[fade:2 * fade]).max() + 1e-6
-    assert np.abs(x).max() > 0.5
+    rms = 20 * np.log10(np.sqrt((x[fade:-fade] ** 2).mean()))
+    assert abs(rms - SPEECH_DBFS) < 0.5 and np.abs(x).max() < 10 ** (PEAK_DBFS / 20), "levelled like the voice helper"
 
 
 def test_says_hi_by_name_and_caches_per_voice_and_speed(tmp_path):

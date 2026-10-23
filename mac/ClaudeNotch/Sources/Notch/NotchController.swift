@@ -34,6 +34,7 @@ final class NotchController {
     private var peeking = false
     private var stepped: StepAside.Move = .stay  // where Maxie is because of what covers his home
     private var acceptedCover: CGRect?  // the window the user dropped Maxie onto: it never moves him
+    private var acceptPending = false   // a drop happened: the next cover check sets acceptedCover
     private var placedPanel: CGRect?  // where Maxie put the chat himself; only other spots are the user's
     private var coverMonitor: Any?
     private var coverTimer: Timer?
@@ -41,6 +42,9 @@ final class NotchController {
     static let freeCheckEvery: TimeInterval = 4  // free Maxie: also look now and then (a window moved by keys)
 
     private let store = PlacementStore()
+    private let noticeLine = NoticeLine()
+    private var layout = ScreenLayout(NSScreen.screens.map { (NotchController.id(of: $0), $0.frame) })
+    private var screensTask: Task<Void, Never>?
     private(set) var placement = BotPlacement.notch(on: 0)
     private let defaults = UserDefaults.standard
 
@@ -70,6 +74,8 @@ final class NotchController {
                 case "open": self.expand(reason: .menu)
                 case "close": self.collapse()
                 case "home": self.goHome()
+                case "pause": self.hub.setPaused(true)   // tests and Shortcuts
+                case "resume": self.hub.setPaused(false)
                 case "screen":
                     self.expand(reason: .menu)
                     self.hub.lookAtScreen(question: "What's on my screen?")
@@ -111,7 +117,7 @@ final class NotchController {
         NSScreen.screens.first { $0.safeAreaInsets.top > 0 } ?? NSScreen.main ?? NSScreen.screens[0]
     }
 
-    private static func id(of screen: NSScreen) -> UInt32 {
+    static func id(of screen: NSScreen) -> UInt32 {
         (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0
     }
 
@@ -149,12 +155,16 @@ final class NotchController {
         dragView.onDragStart = { [weak self] in self?.dragStart() }
         dragView.onDrag = { [weak self] p in self?.dragTo(p) }
         dragView.onDrop = { [weak self] in self?.dropAtMouse() }
-        dragView.onClick = { [weak self] in self?.expand(reason: .menu) }
+        dragView.onClick = { [weak self] in
+            if self?.hub.paused == true { self?.hub.setPaused(false) }  // "click me to wake me"
+            self?.expand(reason: .menu)
+        }
         dragView.onDoubleClick = { [weak self] in self?.goHome() }
         dragView.canDrag = mode == "free"
         let host = NSHostingView(rootView: MiniBot(hub: hub, scale: placement.isAtNotch ? 1 : Self.freeScale,
                                                    onListen: { [weak self] in self?.expand(reason: .wake) },
-                                                   onWork: { [weak self] in self?.working($0) }))
+                                                   onWork: { [weak self] in self?.working($0) },
+                                                   onNotice: { [weak self] in self?.showNotice($0) }))
         host.frame = dragView.bounds
         host.autoresizingMask = [.width, .height]
         dragView.addSubview(host)
@@ -169,7 +179,7 @@ final class NotchController {
             let nc = NotificationCenter.default, ws = NSWorkspace.shared.notificationCenter
             observers = [
                 nc.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
-                    MainActor.assumeIsolated { self?.reposition() }
+                    MainActor.assumeIsolated { self?.screensChanged() }
                 },
                 ws.addObserver(forName: NSWorkspace.screensDidWakeNotification, object: nil, queue: .main) { [weak self] _ in
                     MainActor.assumeIsolated { self?.reposition() }
@@ -199,6 +209,15 @@ final class NotchController {
         checkCover()
     }
 
+    /// a voice notice. Under Maxie for a few seconds; with the chat open, as Maxie's line in it instead.
+    private func showNotice(_ notice: VoiceNotice) {
+        if big != nil {
+            hub.note(notice.text)
+            return
+        }
+        noticeLine.show(notice, under: mini?.frame ?? botFrame, in: screen.visibleFrame.union(screen.frame))
+    }
+
     /// Settings › General: hide or show Maxie.
     func setMiniVisible(_ visible: Bool) {
         if visible, mini == nil { show() } else if !visible { Self.discard(mini); mini = nil }
@@ -218,6 +237,25 @@ final class NotchController {
     private func updateCursorLook() {
         let f = botFrame
         CursorLook.origin = CGPoint(x: f.midX, y: f.minY + f.height * 0.62)
+    }
+
+    /// macOS sends screen-parameter changes in bursts and for much more than a display change (~100 an hour on his
+    /// Mac: the Dock, the menu bar, Spaces). Rebuilding Maxie's window for each cost 0.5–1.7 s on the main thread
+    ///. Wait for the burst to settle; rebuild only when a display came, went or changed size.
+    private func screensChanged() {
+        screensTask?.cancel()
+        screensTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(ScreenLayout.settle))
+            guard !Task.isCancelled, let self else { return }
+            let now = ScreenLayout(NSScreen.screens.map { (Self.id(of: $0), $0.frame) })
+            if now != self.layout {
+                self.layout = now
+                self.reposition()
+            } else if let mini = self.mini, mini.frame != self.botFrame {
+                mini.setFrame(self.botFrame, display: true)
+                self.attachPanel()
+            }
+        }
     }
 
     /// Screens changed, or Home / Size changed in Settings: rebuild Maxie; an open panel stays and re-attaches.
@@ -276,7 +314,8 @@ final class NotchController {
         store.save(placement)
         Log.d("drop -> \(placement)")
         settle(bounce: true)
-        acceptedCover = StepAside.cover(botFrame, StepAside.frontWindows())  // the user put him there on purpose
+        acceptPending = true  // the user put him there on purpose: the next cover check takes that window as accepted
+        checkCover()
     }
 
     /// Double-click: everything goes home. Maxie to the notch, an open chat back beside him (it
@@ -390,13 +429,26 @@ final class NotchController {
     }
 
     /// Nothing covers what the user is working on: a full-screen app ("Hide when an app is fullscreen") or a window over
-    /// the notch sends Maxie up and out; a window under a free Maxie moves him beside it; then back home.
+    /// the notch sends Maxie up and out; a window under a free Maxie moves him beside it; then back home. The window
+    /// list is read off the main thread (WindowList), so a busy WindowServer never stalls Maxie.
     private func checkCover() {
-        guard DebugSnapshot.dir == nil, let mini,
-              Self.mayStepAside(peeking: peeking, dragging: drag?.isDragging ?? false, following: following) else { return }
+        guard DebugSnapshot.dir == nil else { return }
+        Task { [weak self] in
+            let list = await WindowList.fresh()
+            self?.checkCover(list)
+        }
+    }
+
+    private func checkCover(_ list: [WindowList.Window]) {
+        if acceptPending {  // he just dropped Maxie: the window under him now is one he chose (see drop)
+            acceptPending = false
+            acceptedCover = StepAside.cover(botFrame, StepAside.frontWindows(list))
+        }
+        guard let mini, Self.mayStepAside(peeking: peeking, dragging: drag?.isDragging ?? false, following: following)
+        else { return }
         let home = botFrame
-        let move = StepAside.move(bot: home, windows: StepAside.frontWindows(),
-                                  fullscreen: hideWhenFullscreen && Self.fullscreenWindowPresent(),
+        let move = StepAside.move(bot: home, windows: StepAside.frontWindows(list),
+                                  fullscreen: hideWhenFullscreen && Self.fullscreenWindowPresent(list),
                                   atNotch: placement.isAtNotch, screen: screen.frame, accepted: acceptedCover)
         if stroll.isWalking {  // one owner of where he is: the stroll, until something covers him
             guard move != .stay else { return }
@@ -436,17 +488,8 @@ final class NotchController {
                                              accepted: acceptedCover, reduce: Motion.reduce))
     }
 
-    private static func fullscreenWindowPresent() -> Bool {
-        guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return false }
-        let screens = NSScreen.screens.map { $0.frame.size }
-        for w in list {
-            guard (w[kCGWindowLayer as String] as? Int) == 0,
-                  (w[kCGWindowOwnerPID as String] as? Int32) != getpid(),
-                  let b = w[kCGWindowBounds as String] as? [String: CGFloat],
-                  let width = b["Width"], let height = b["Height"] else { continue }
-            if screens.contains(where: { abs($0.width - width) < 2 && abs($0.height - height) < 2 }) { return true }
-        }
-        return false
+    private static func fullscreenWindowPresent(_ list: [WindowList.Window]) -> Bool {
+        WindowList.fullscreen(list, screens: NSScreen.screens.map { $0.frame.size }, own: getpid())
     }
 
     // MARK: - The panel
@@ -735,6 +778,7 @@ struct MiniBot: View {
     var scale: CGFloat = 1
     let onListen: () -> Void
     var onWork: (Bool) -> Void = { _ in }
+    var onNotice: (VoiceNotice) -> Void = { _ in }
 
     /// What the notch shows: the hub's state as it is. His eyes close only when the user said "stop
     /// watching" (the hub's base) or is asleep, never because the mic is paused; asleep while the hub is offline.
@@ -749,6 +793,7 @@ struct MiniBot: View {
                 if s == .listen { onListen() }
                 onWork(s == .think)
             }
+            .onChange(of: hub.notice) { _, n in if let n { onNotice(n) } }
             .help(hub.connected ? "Maxie: \(hub.state.label)" : "Maxie: hub offline")
     }
 }

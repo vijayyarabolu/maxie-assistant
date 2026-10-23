@@ -18,7 +18,8 @@ enum BridgeRoutes {
                 return .json(["contacts": people.map { ["name": $0.name, "phones": $0.phones.joined(separator: ", "),
                                                         "emails": $0.emails.joined(separator: ", ")] }])
             case ("GET", "/calendar"):
-                return .json(["events": try CalendarStore.events(days: Int(r.query["days"] ?? "") ?? 1)])
+                return .json(["events": try CalendarStore.events(days: Int(r.query["days"] ?? "") ?? 1),
+                              "calendars": CalendarStore.calendars()])
             case ("GET", "/reminders"):
                 return .json(["reminders": try await CalendarStore.reminders()])
             case ("GET", "/notes"):

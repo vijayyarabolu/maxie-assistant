@@ -48,17 +48,15 @@ enum StepAside {
         hypot(a.midX - b.midX, a.midY - b.midY)
     }
 
-    /// The front app's normal windows, on screen now, in AppKit coordinates. Never Maxie's own.
-    static func frontWindows() -> [CGRect] {
-        guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier, pid != getpid(),
-              let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]
-        else { return [] }
-        let top = NSScreen.screens.first?.frame.height ?? 0
-        return list.compactMap { w in
-            guard (w[kCGWindowLayer as String] as? Int) == 0, (w[kCGWindowOwnerPID as String] as? Int32) == pid,
-                  let b = w[kCGWindowBounds as String] as? [String: CGFloat],
-                  let x = b["X"], let y = b["Y"], let width = b["Width"], let height = b["Height"] else { return nil }
-            return cocoa(CGRect(x: x, y: y, width: width, height: height), primaryHeight: top)
-        }
+    /// The front app's normal windows in AppKit coordinates, never Maxie's own. From `list`, or else the last window
+    /// list read (WindowList), so the main thread never waits on WindowServer.
+    @MainActor
+    static func frontWindows(_ list: [WindowList.Window]? = nil) -> [CGRect] {
+        guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier, pid != getpid() else { return [] }
+        return frontWindows(list ?? WindowList.recent(), front: pid, primaryHeight: NSScreen.screens.first?.frame.height ?? 0)
+    }
+
+    static func frontWindows(_ list: [WindowList.Window], front pid: Int32, primaryHeight top: CGFloat) -> [CGRect] {
+        list.filter { $0.layer == 0 && $0.pid == pid }.map { cocoa($0.bounds, primaryHeight: top) }
     }
 }

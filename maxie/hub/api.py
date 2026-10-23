@@ -31,6 +31,7 @@ from ..budget import price_guessed
 from ..config import data_dir, secret, store_secret
 from ..db import SCHEMA_VERSION
 from ..evals import load as load_eval_commands
+from ..events import sse
 from ..flows import FlowError
 from ..hands.apple import AppleUnavailable
 from ..latency import TARGET_MS
@@ -46,6 +47,7 @@ from . import (
     background_api,
     decisions_api,
     maxie_api,
+    pause_api,
     presence_api,
     settings_api,
     setup_api,
@@ -179,11 +181,12 @@ def create_app(services: Services, token: str | None = None, scheduler: bool = T
         if schema_changed and scheduler:
             tasks.append(asyncio.create_task(asyncio.to_thread(s.backup.run, f"after schema change to {SCHEMA_VERSION}")))
         if scheduler:
-            tasks.append(asyncio.create_task(run_scheduler(s.proactive)))
+            tasks.append(asyncio.create_task(run_scheduler(s.proactive, paused=lambda: s.settings.paused)))
             tasks.append(asyncio.create_task(weekly_recalibration()))
             tasks.append(asyncio.create_task(keep_fast()))
             tasks.append(asyncio.create_task(background_work(
-                s.background, s.agent, on_error=lambda m: s.audit.log("hub", "background_error", {}, "", m[:200]))))
+                s.background, s.agent, on_error=lambda m: s.audit.log("hub", "background_error", {}, "", m[:200]),
+                paused=lambda: s.settings.paused)))
             if s.models.due():
                 tasks.append(asyncio.create_task(asyncio.to_thread(models_check)))  # on hub start
         yield
@@ -197,7 +200,7 @@ def create_app(services: Services, token: str | None = None, scheduler: bool = T
         last_warm = 0.0
         while True:
             try:
-                if s.brain.client is not None and not s.proactive.asleep():
+                if s.brain.client is not None and not s.proactive.asleep() and not s.settings.paused:
                     if time.time() - last_warm > WARM_EVERY_S:
                         warmed = [await s.brain.warm(m) for m in models_to_warm(s.settings, s.models)]
                         if warmed[0]:
@@ -252,6 +255,7 @@ def create_app(services: Services, token: str | None = None, scheduler: bool = T
                 "laya": "up" if (s.laya and s.laya.healthy()) else "down", **s.mode}
 
     voice_api.register(app, s, api)  # mic button, texts to speak, voice enrollment
+    pause_api.register(app, s, api)  # Pause Maxie: no listening, watching or work of his own
     decisions_api.register(app, s, api)  # Settings › Speed › Deciders
     maxie_api.register(app, s, api)  # Settings › Maxie: look, character, personality, voice
     presence_api.register(app, s, api)  # the Mac and the phone say whether he is up
@@ -290,24 +294,7 @@ def create_app(services: Services, token: str | None = None, scheduler: bool = T
     @app.get("/api/events", dependencies=api)
     async def events(once: bool = False):
         """Server-sent events: mascot state + transcript + steps + confirmations. Heartbeat every 15 s."""
-        async def stream():
-            sub = s.events.subscribe()
-            try:
-                first = await anext(sub)
-                yield f"data: {json.dumps(first)}\n\n"
-                if once:
-                    return
-                while True:
-                    try:
-                        ev = await asyncio.wait_for(anext(sub), timeout=15)
-                        yield f"data: {json.dumps(ev, default=str)}\n\n"
-                    except TimeoutError:
-                        yield ": keep-alive\n\n"
-                    except StopAsyncIteration:  # the subscription closed (hub stopping): end the stream cleanly
-                        return
-            finally:
-                await sub.aclose()
-        return StreamingResponse(stream(), media_type="text/event-stream",
+        return StreamingResponse(sse(s.events, once=once), media_type="text/event-stream",
                                  headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
     @app.post("/api/events/state", dependencies=api)

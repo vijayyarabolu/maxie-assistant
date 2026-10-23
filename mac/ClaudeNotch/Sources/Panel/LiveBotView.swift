@@ -37,8 +37,12 @@ struct LiveBotView: NSViewRepresentable {
         if c.state != state.rawValue {
             c.state = state.rawValue
             web.evaluateJavaScript("window.bot && bot.setState('\(state.rawValue)')")
+            web.rest(Self.rests(state))
         }
     }
+
+    /// an open (often pinned) panel drew Maxie's fur at 30 fps all day. Idle, he holds still.
+    static func rests(_ state: BotState) -> Bool { MascotLayerView.resting.contains(state) }
 
     private func load(_ web: WKWebView, _ c: Coordinator) {
         c.character = character
@@ -81,7 +85,32 @@ final class BotWebView: WKWebView {
         }
     }
 
+    static let settleS: TimeInterval = 3  // the move into a resting state finishes before he holds still
+    private var visible = true
+    private(set) var resting = false
+    private var settle: DispatchWorkItem?
+
     func setDrawing(_ on: Bool) {
-        evaluateJavaScript(on ? "window.bot && bot.start()" : "window.bot && bot.stop()")
+        visible = on
+        apply()
+    }
+
+    /// Resting (idle, asleep): after `settleS` the page stops drawing and keeps its last frame; any other state
+    /// draws again at once.
+    func rest(_ on: Bool) {
+        settle?.cancel()
+        guard on else { resting = false; return apply() }
+        let item = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated {
+                self?.resting = true
+                self?.apply()
+            }
+        }
+        settle = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.settleS, execute: item)
+    }
+
+    private func apply() {
+        evaluateJavaScript(visible && !resting ? "window.bot && bot.start()" : "window.bot && bot.stop()")
     }
 }

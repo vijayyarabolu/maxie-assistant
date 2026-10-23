@@ -108,7 +108,9 @@ def local_timezone() -> str:
 
 
 SLEEP_MODES = ("presence", "fixed")
-BOOL_KEYS = ("brief_sleep", "screen_when_away", "warm_sonnet")
+BOOL_KEYS = ("brief_sleep", "screen_when_away", "warm_sonnet", "paused")
+
+
 def _excluded(value: object) -> list[str]:
     """Apps he never wants watched: bundle ids or app names, trimmed, no repeats, at most 50."""
     if not isinstance(value, list) or not all(isinstance(v, str) and 0 < len(v.strip()) <= 100 for v in value):
@@ -148,6 +150,7 @@ class Settings:
     daily_application_goal: int = 10
     voice: str = "af_heart"  # Kokoro voice id on the Mac; the phone uses its own voices
     voice_muted: bool = False  # the Mac stops listening for "Hey Max" (menu bar toggle)
+    paused: bool = False  # Pause Maxie: no listening, watching or work of his own (hub/pause_api)
     voice_input_device: str = ""  # sounddevice input name; "" = system default
     speak_replies: bool = True  # the Mac speaks replies to "Hey Max"; off = text in the panel only
     whisper_at_night: bool = True  # in quiet hours the Mac speaks softer and a little slower

@@ -94,4 +94,12 @@ final class WatchTests: XCTestCase {
         harness.click(target: "suggestion.yes")
         XCTAssertNil(h.suggestion, "answered")
     }
+
+    /// the title lookup now runs off the main thread, so a slow app's answer can land after he
+    /// switched on. Only the app still in front is noted; a late answer from the one he left is dropped.
+    func testALateTitleFromAnAppHeLeftIsDropped() {
+        XCTAssertTrue(Observer.stillFront(42, front: 42))
+        XCTAssertFalse(Observer.stillFront(42, front: 7), "he switched to another app meanwhile")
+        XCTAssertFalse(Observer.stillFront(42, front: nil))
+    }
 }

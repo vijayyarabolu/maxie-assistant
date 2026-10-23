@@ -116,3 +116,22 @@ def test_connections_says_why_calendar_is_refused_and_the_fix(make_services, bod
 def test_connections_lists_nothing_while_calendar_answers(make_services):
     c, _ = client(make_services, Deps())
     assert c.get("/api/connections", headers=H).json()["google"]["refused"] == []
+
+
+def test_the_brief_lists_the_macs_calendars_beside_google(clock):
+    # the brief read only Google; the Mac's Calendar (iCloud Home / Work, invites, holidays) was missing
+    from maxie.hands.apple import FakeApple
+    p = live_like(clock, jobs_answering(200))
+    day = "2026-10-15"  # the clock fixture's day
+    p.apple = FakeApple(events=[{"title": "Maharishi Valmiki Jayanti", "start": day, "all_day": "true",
+                                 "calendar": "Holidays in India"}])
+    calendar = next(s for s in p.brief().sections if s.name == "Calendar")
+    assert "All day: Maharishi Valmiki Jayanti" in calendar.lines
+
+
+def test_a_mac_without_the_bridge_still_gets_googles_calendar(clock):
+    from maxie.hands.apple import AppleUnavailable, FakeApple
+    p = live_like(clock, jobs_answering(200), cal=calendar_answering(200))
+    p.apple = FakeApple(error=AppleUnavailable("bridge_down"))
+    calendar = next(s for s in p.brief().sections if s.name == "Calendar")
+    assert calendar.missing == "" and calendar.lines == ["Nothing on your calendars today."]

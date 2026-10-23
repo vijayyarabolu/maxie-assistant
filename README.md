@@ -29,7 +29,7 @@ optional here and off by default.
   readable markdown page (`maxie/memory.py`) and proactive briefs (`maxie/proactive.py`).
 - A home-screen web app in `web/` with chat, Activity, Memory and a Settings page with a live status panel.
 - An optional Swift notch app in `mac/ClaudeNotch/` and launchd services in `deploy/` (macOS only).
-- Evals in `evals/` and `maxie/evals*.py`, and about 650 tests in `tests/`.
+- Evals in `evals/` and `maxie/evals*.py`, and about 790 tests in `tests/`.
 
 ## Quickstart
 
@@ -208,7 +208,7 @@ All numbers below are from real runs.
   Google and job data, pass bar 90%. Last run on October 15, 2026: 40 of 40, $0.12. The saved reports in
   `evals/` keep the scores and grader notes; I removed the reply texts from the public copy.
   I didn't rerun the two live evals for this release because they need an API key.
-- Tests: `make test` runs about 650 tests in about a minute, fully offline (fakes, MockTransport, a
+- Tests: `make test` runs about 790 tests in about a minute and a half, fully offline (fakes, MockTransport, a
   sandboxed data folder; the live folder refuses to open during tests). CI runs lint, the tests, the
   router eval and a syntax check of the web app on Ubuntu.
 
@@ -223,7 +223,10 @@ These parts are macOS only and switch themselves off elsewhere, with a note in S
   speech. Install with `uv pip install -p .venv mlx-whisper silero-vad sounddevice kokoro-onnx`, and put
   `kokoro-v1.0.onnx` and `voices-v1.0.bin` from the
   [kokoro-onnx model release](https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0)
-  in `~/.maxie/models/kokoro`. Without them it falls back to macOS `say`.
+  in `~/.maxie/models/kokoro`. Without them it falls back to macOS `say`. On the built-in speakers WebRTC's
+  echo canceller (`uv pip install -p .venv livekit==1.1.21`, optional) cleans the mic while Maxie talks, and
+  only "Maxie, stop" can interrupt him there. ⌥⇧P, the menu or "Maxie, go to sleep" pauses him: no listening,
+  watching or background work until you resume.
 - The notch app (`mac/ClaudeNotch/`): needs Xcode and XcodeGen. Its animation frames are generated, not
   checked in: `make mascot` renders them with Playwright. See its [README](mac/ClaudeNotch/README.md).
   In Settings › Access, "Connect the Mac app" puts its token in your Keychain.

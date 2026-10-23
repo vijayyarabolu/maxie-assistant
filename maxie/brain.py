@@ -117,6 +117,12 @@ class Brain:
         self.budget.record(msg.model if msg.model in PRICES else model, msg.usage, "warm")
         return True
 
+    def _only_reads(self, tool_uses: list, ctx: TurnContext) -> bool:
+        def reads(name: str) -> bool:
+            tool = self.registry.get(name)
+            return name not in ctx.on_device and tool is not None and tool.kind == "read"
+        return all(reads(b.name) for b in tool_uses)
+
     def _remember(self, args: dict, said: str) -> tuple[str, bool]:
         fact = str(args.get("fact", ""))
         if not supported_by(fact, said):
@@ -198,6 +204,8 @@ class Brain:
                 yield {"type": "tool", "name": "web_search_requested", "ok": True}
                 continue
 
+            if ctx.verdict is not None and not self._only_reads(tool_uses, ctx):
+                await ctx.verdict.wait()  # an early answer does nothing but read until the router agrees
             results = []
             for block in tool_uses:
                 args = block.input if isinstance(block.input, dict) else {}

@@ -118,3 +118,13 @@ struct PlacementStore {
 
     func reset() { defaults.removeObject(forKey: key) }
 }
+
+/// Which displays are attached and how big they are: what decides whether Maxie's window needs rebuilding.
+struct ScreenLayout: Equatable {
+    static let settle: Double = 0.3  // notifications come in bursts; act once they stop
+    let screens: [String]
+
+    init(_ screens: [(UInt32, CGRect)]) {
+        self.screens = screens.map { id, f in "\(id):\(Int(f.minX)),\(Int(f.minY)),\(Int(f.width))x\(Int(f.height))" }.sorted()
+    }
+}

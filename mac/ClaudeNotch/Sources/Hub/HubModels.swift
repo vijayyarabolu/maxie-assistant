@@ -106,9 +106,10 @@ struct HubEvent: Decodable {
     let steps: [FlowStep]?  // "flow_run"
     let apps: [String]?     // "open_apps": bundle ids (a routine)
     let sid: Int?           // "suggestion": its id
+    let alive: Bool?        // "voice": the voice helper answers the hub
 
     enum CodingKeys: String, CodingKey {
-        case type, state, base, hold, role, text, name, ok, id, summary, kind, run, on, steps, apps, sid
+        case type, state, base, hold, role, text, name, ok, id, summary, kind, run, on, steps, apps, sid, alive
         case isFinal = "final"
         case afterUntrusted = "after_untrusted"
     }

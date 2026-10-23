@@ -144,3 +144,12 @@ def test_calibrate_picks_thresholds_and_needs_200():
     assert cal.thresholds["email"] == 0.99  # wrong "email" guesses sit at 0.9
     assert cal.thresholds["calendar"] == 0.9
     assert not calibrate(examples[:100], predict).calibrated
+
+
+def test_open_inside_a_question_never_opens_an_app():
+    # "What are my open reminders?" opened the Reminders app instead of answering
+    from maxie.router.rules import extract
+    for question in ["What are my open reminders?", "any open tabs in chrome", "how many open jobs are there"]:
+        assert extract(question) is None, question
+    assert extract("can you open spotify").args == {"name": "Spotify"}
+    assert extract("could you launch Xcode please").action == "open_app"

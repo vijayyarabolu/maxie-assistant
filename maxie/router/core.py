@@ -66,6 +66,14 @@ class Router:
     def allowed_direct(self) -> set[str]:
         return HARMLESS | CALIBRATED_EXTRA if self.calibration.calibrated else HARMLESS
 
+    def needs_model(self, text: str) -> bool:
+        """Routing this will wait on Haiku (~1.5 s): no rule matches and the lexicon is unsure."""
+        return self.haiku is not None and rules.match(text) is None and lexicon.classify(text)[1] < LEXICON_TRUST
+
+    def early_model(self, text: str) -> str:
+        """Who answers if the router says it is a quick turn: the model an early answer starts on."""
+        return self.models.active(pick_tier("quick_question", text))
+
     def route(self, text: str) -> Decision:
         t0 = time.perf_counter()
         d = self._route(text)

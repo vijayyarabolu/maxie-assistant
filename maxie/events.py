@@ -14,11 +14,14 @@ Publishing is thread-safe (the scheduler runs in a worker thread); each subscrib
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import json
 import threading
 import time
 from collections.abc import AsyncIterator, Callable
 
 STATES = ("idle", "listen", "think", "talk", "happy", "proud", "sleep", "gentle", "wave", "closed", "stretch")
+HEARTBEAT_S = 15.0  # a comment line this often keeps proxies and the Mac's URLSession from closing a quiet stream
 HOLD_SECONDS = {"happy": 8.0, "proud": 8.0, "gentle": 45.0}
 
 
@@ -91,3 +94,32 @@ def _put(q: asyncio.Queue, ev: dict) -> None:
     if q.full():  # a slow client loses old events, never blocks the agent
         q.get_nowait()
     q.put_nowait(ev)
+
+
+async def sse(events: Events, heartbeat_s: float = HEARTBEAT_S, once: bool = False) -> AsyncIterator[str]:
+    """`GET /api/events` as SSE lines: the current state, then every event, a keep-alive in quiet stretches.
+    The pending read survives a keep-alive: `wait_for(anext(sub))` would cancel the subscription on its first
+    timeout and end the stream every quiet 15 s (the notch showed "offline" every 16 s)."""
+    sub = events.subscribe()
+    pending: asyncio.Future | None = None
+    try:
+        yield f"data: {json.dumps(await anext(sub))}\n\n"
+        if once:
+            return
+        while True:
+            pending = pending or asyncio.ensure_future(anext(sub))
+            done, _ = await asyncio.wait({pending}, timeout=heartbeat_s)
+            if not done:
+                yield ": keep-alive\n\n"
+                continue
+            try:
+                ev, pending = pending.result(), None
+            except StopAsyncIteration:  # the subscription closed (hub stopping): end the stream cleanly
+                return
+            yield f"data: {json.dumps(ev, default=str)}\n\n"
+    finally:
+        if pending is not None:  # the client left mid-wait: the read must end before the subscription closes
+            pending.cancel()
+            with contextlib.suppress(asyncio.CancelledError, StopAsyncIteration):
+                await pending
+        await sub.aclose()

@@ -88,7 +88,7 @@ def test_a_long_talk_waits_through_pauses_and_ends_on_thats_all(short_windows):
     script = silence(0.2) + speech(1.5) + silence(0.8) + silence(6) + speech(1.0) + silence(0.8) + speech(1.0) + silence(0.8)
     loop, hub = make_loop(script, ["Hey Max let's talk", "Hey Max, let's talk.", "what should I cook tonight",
                                    "that's all"], [{"type": "done", "text": "Dal and rice."}])
-    loop.barge_in_ok = lambda: False  # its watcher would read the scripted pause from the same fake mic
+    loop.listen_while_talking = False  # its watcher would read the scripted pause from the same fake mic
     loop.run()
     assert hub.chats == ["what should I cook tonight"]
     assert loop.tts.texts[0] == voice_loop.LISTENING and loop.tts.texts[-1] == "Okay. Talk soon."
@@ -99,7 +99,7 @@ def test_without_a_long_talk_the_same_pause_ends_the_follow_up(short_windows):
     script = silence(0.2) + speech(1.5) + silence(0.8) + silence(6) + speech(1.0) + silence(0.8)
     loop, hub = make_loop(script, ["Hey Max what time is it", "Hey Max, what time is it?", "and the weather"],
                           [{"type": "done", "text": "Nine."}])
-    loop.barge_in_ok = lambda: False
+    loop.listen_while_talking = False
     loop.run()
     assert hub.chats == ["what time is it?"], "the late follow-up needs the wake phrase again"
 

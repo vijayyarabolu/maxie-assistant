@@ -92,4 +92,6 @@ extension Binding {
 extension Notification.Name {
     /// System Settings is coming to the front for the user: Maxie's floating chat drops below it.
     static let maxieStepsAside = Notification.Name("maxie.stepsAside")
+    /// Settings › General › Quit Maxie: the app asks, stops his services and quits (AppDelegate.quitAsking).
+    static let maxieQuits = Notification.Name("maxie.quits")
 }

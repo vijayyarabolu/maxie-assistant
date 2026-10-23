@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 
 from . import background as bg
 from . import mood
-from .attachments import gather
+from .attachments import Attachments, gather
 from .brain import Brain
 from .budget import SONNET
 from .config import Settings
@@ -23,12 +23,14 @@ from .db import DB
 from .events import Events
 from .hands import ask_claude
 from .hands.apple import AppleBridge, AppleUnavailable
+from .hands.mac import MUSIC_CLOSED
 from .hands.registry import Registry, TurnContext
 from .latency import APPLE_MODEL, Latency, Turn, kind_of
 from .memory import Memory, guess_topic
 from .personality import ACKS, Wellbeing
 from .router import Decision, Router
 from .safety import KillSwitch
+from .speculate import Early
 from .tasks import Tasks
 
 HISTORY_TURNS = 10  # prior turns (user + assistant) sent to the brain
@@ -236,12 +238,23 @@ class Agent:
             async for ev in self._ask_claude(text, conv):
                 yield ev
             return
+        early = None
         if att.has_image:  # what's on the screen / this picture: Sonnet with vision, no router
             d = Decision(route="screen", source="rules", confidence=1.0, model=SONNET)
         elif att.blocks:
             d = Decision(route="multi_step", source="rules", confidence=1.0, model=SONNET)
         else:
-            d = await asyncio.to_thread(self.router.route, text)
+            d, early = await self._route_with_early_answer(history, text, device)
+        try:
+            async for ev in self._answer(d, early, text, history, conv, device, att):
+                yield ev
+        finally:
+            if early is not None:  # he left before it was released: it stops, and never ran more than reads
+                early.drop()
+
+    async def _answer(self, d: Decision, early: Early | None, text: str, history: list[dict], conv: str,
+                      device: str, att: Attachments) -> AsyncIterator[dict]:
+        """Everything after routing: a text task, a direct action, or the brain (the early answer when it was kept)."""
         if d.route == "text_task":
             async for ev in self._text_task(d, text, history, conv):
                 yield ev
@@ -271,14 +284,35 @@ class Agent:
             if ack := ACKS.get(d.route):
                 yield {"type": "ack", "text": ack}
             reply = care + " " if care else ""
-            reaction = self._reaction(text)
-            ctx = TurnContext(why=text[:200], on_device=frozenset(DEVICE_ACTIONS.get(device, ())),
-                              tone=reaction.tone if reaction else "")
-            async for ev in self.brain.run(history, text, d.model, ctx, attachments=att.blocks):
+            run = early.release() if early else self.brain.run(history, text, d.model, self._turn_ctx(text, device),
+                                                               attachments=att.blocks)
+            async for ev in run:
                 if ev["type"] == "done":
                     reply += ev["text"]
                 yield ev
         self.conversations.add(conv, "assistant", reply.strip(), d.route)
+
+    def _turn_ctx(self, text: str, device: str, verdict: asyncio.Event | None = None) -> TurnContext:
+        reaction = self._reaction(text)
+        return TurnContext(why=text[:200], on_device=frozenset(DEVICE_ACTIONS.get(device, ())),
+                           tone=reaction.tone if reaction else "", verdict=verdict)
+
+    async def _route_with_early_answer(self, history: list[dict], text: str, device: str) -> tuple[Decision, Early | None]:
+        """Routes, and when that waits on Haiku, starts the quick answer meanwhile (maxie.speculate). The early
+        answer comes back only when the router sent the turn to the brain on the same model."""
+        if not self.router.needs_model(text):
+            return await asyncio.to_thread(self.router.route, text), None
+        model, ctx = self.router.early_model(text), self._turn_ctx(text, device, verdict=asyncio.Event())
+        early = Early(self.brain.run(history, text, model, ctx), model, ctx)
+        try:
+            d = await asyncio.to_thread(self.router.route, text)
+        except BaseException:
+            early.drop()
+            raise
+        if d.direct or d.route == "text_task" or d.model != model:
+            early.drop()
+            return d, None
+        return d, early
 
     async def _text_task(self, d: Decision, text: str, history: list[dict], conv: str) -> AsyncIterator[dict]:
         """Summaries, rewrites, replies, dates: Apple's on-device model first ($0, private, ~2 s), Haiku when
@@ -376,4 +410,6 @@ class Agent:
         r = await asyncio.to_thread(self.registry.execute, d.action, d.args, TurnContext(actor="router", why="direct"))
         if r.confirmation is not None:
             return f"That needs your OK first: {r.confirmation.summary}.", r.confirmation
-        return (f"Couldn't do that: {r.content}" if r.is_error else done_line(d.action, d.args)), None
+        if r.is_error:
+            return f"Couldn't do that: {r.content}", None
+        return (MUSIC_CLOSED if r.content == MUSIC_CLOSED else done_line(d.action, d.args)), None  # not "Paused."

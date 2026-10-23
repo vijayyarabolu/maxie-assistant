@@ -46,6 +46,7 @@ class AppleBridge(Protocol):
     def messages(self, person: str, query: str = "", days: int = SEARCH_DAYS) -> list[dict]: ...
     def contacts(self, query: str) -> list[dict]: ...
     def events(self, days: int = 1) -> list[dict]: ...
+    def calendar(self, days: int = 1) -> dict: ...
     def reminders(self) -> list[dict]: ...
     def notes(self, query: str) -> list[dict]: ...
     def mail(self, query: str) -> list[dict]: ...
@@ -123,6 +124,11 @@ class BridgeHTTP:
     def events(self, days=1):
         return self._call("GET", "/calendar", params={"days": days})["events"]
 
+    def calendar(self, days=1):
+        """{"events": [...], "calendars": [{"title", "account"}]}: the calendars too, so Maxie can say what she read."""
+        body = self._call("GET", "/calendar", params={"days": days})
+        return {"events": body.get("events", []), "calendars": body.get("calendars", [])}
+
     def reminders(self):
         return self._call("GET", "/reminders")["reminders"]
 
@@ -146,8 +152,9 @@ class FakeApple:
     """For tests and the fake hub: messages keyed by the person's first name, lower case."""
 
     def __init__(self, messages: dict | None = None, error: AppleUnavailable | None = None, fm_reply: str = "",
-                 screen: str = ""):
+                 screen: str = "", events: list[dict] | None = None, calendars: list[dict] | None = None):
         self.by_person, self.error, self.fm_reply, self.screen = dict(messages or {}), error, fm_reply, screen
+        self.event_rows, self.calendar_rows = list(events or []), list(calendars or [])
         self.calls: list[tuple] = []
 
     def _check(self, *call) -> None:
@@ -165,7 +172,11 @@ class FakeApple:
 
     def events(self, days=1):
         self._check("events", days)
-        return []
+        return list(self.event_rows)
+
+    def calendar(self, days=1):
+        self._check("calendar", days)
+        return {"events": list(self.event_rows), "calendars": list(self.calendar_rows)}
 
     def reminders(self):
         self._check("reminders")

@@ -96,11 +96,25 @@ def run_pipeline(audio: np.ndarray, stt: STT, check: SpeakerCheck) -> dict:
         r = detect(text, after_silence=True)
         if r.woke:
             grammar[r.form] = grammar.get(r.form, 0) + 1
-            ok = check.verify(out)
+            ok = check.judge(out, r.form).woke  # hey forms wake anyone, bare names need his voice
             heard.append({"text": text, "form": r.form, "speaker_ok": ok})
             if ok:
                 verified[r.form] = verified.get(r.form, 0) + 1
     return {"segments": segments, "grammar": grammar, "with_speaker_check": verified, "examples": heard[:15]}
+
+
+def non_speech(rng: random.Random, seconds: float = 60) -> np.ndarray:
+    """Things a VAD can let through that aren't words: hiss, a hum, clicks, a little tune. With the wake prompt
+    Whisper must not "hear" Maxie in them."""
+    n, t = int(seconds * RATE), np.arange(int(seconds * RATE)) / RATE
+    g = np.random.default_rng(rng.randrange(1 << 30))
+    hiss = g.standard_normal(n) * 0.05
+    hum = 0.2 * np.sin(2 * np.pi * 120 * t) * (1 + 0.5 * np.sin(2 * np.pi * 0.5 * t))
+    clicks = np.zeros(n)
+    clicks[g.integers(0, n, 400)] = 0.8
+    notes = 0.2 * np.sin(2 * np.pi * np.repeat(g.choice([262, 294, 330, 392, 440], int(seconds * 4)), RATE // 4)[:n] * t)
+    quiet = np.zeros(RATE // 2)
+    return np.concatenate([x for part in (hiss, hum, clicks, notes) for x in (part, quiet)]).astype(np.float32)
 
 
 def main() -> None:
@@ -122,6 +136,9 @@ def main() -> None:
                                 "verified_per_hour": round(sum(fw["with_speaker_check"].values()) / hours, 2)}
         recall_audio = np.concatenate([np.concatenate([say(tts, t, HIM), np.zeros(RATE, np.float32)]) for t in HELD_OUT])
         rec = run_pipeline(np.concatenate([np.zeros(RATE, np.float32), recall_audio]), stt, check)
+        noise = run_pipeline(non_speech(rng), stt, check)
+        report["non_speech"] = {"minutes": 4, "segments": noise["segments"], "grammar": noise["grammar"],
+                                "examples": noise["examples"]}
         report["recall"] = {"said": len(HELD_OUT), "woke": sum(rec["with_speaker_check"].values()), "examples": rec["examples"]}
         report["seconds"] = round(time.time() - t0)
     text = json.dumps(report, indent=2)

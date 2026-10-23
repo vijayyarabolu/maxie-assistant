@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo
 from .budget import Budget
 from .config import Settings
 from .db import DB
+from .hands.apple import AppleUnavailable
 from .hands.google import JOB, MAIN, Calendar, Email, Mail
 from .hands.google_real import GoogleRefused
 from .hands.jobs import Jobs
@@ -30,6 +31,7 @@ REFUSED = "Google said no (403)"  # a source's one line when Google refuses it; 
 
 STEP_ERROR_EVERY_S = 3600  # a check that keeps failing is logged once an hour
 MORNING_UNTIL_H = 12  # the brief says "Good morning" before noon, "Today so far" after
+BRIEF_EVENTS = 6  # events the brief lists for today
 
 
 @dataclass(frozen=True)
@@ -132,6 +134,7 @@ class Proactive:
         self.models = models  # maxie.models.Models: "Upgraded X -> Y" lines in the brief
         self.models_check = None  # () -> list, set by the hub when there is an API client
         self.sessions = None  # hands.sessions.Watcher, set by services.build
+        self.apple = None  # hands.apple bridge, set by services.build: the Mac's calendars in the brief
         self.events = None  # maxie.events.Events, set by the hub: drives the mascot
         self.moments = None  # maxie.mood.Moments, set by the hub: rare idle moments
         self.presence = None  # maxie.presence.Presence, set by the hub: is he asleep
@@ -233,12 +236,34 @@ class Proactive:
         return [BriefSection("Sleep", [line])] if line else []
 
     def _calendar(self, now: datetime) -> BriefSection:
+        mac = self._mac_today(now)
         if not self.calendar_connected:
-            return BriefSection("Calendar", missing="Google Calendar not connected", action="connect_google")
+            return BriefSection("Calendar", [line for _, line in mac], missing="Google Calendar not connected",
+                                action="connect_google")
         day_end = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
         events = self.cal.events(now, day_end)
-        lines = [f"{datetime.fromisoformat(e.start).astimezone(self.tz):%-I:%M %p} {e.title}" for e in events[:6]]
-        return BriefSection("Calendar", lines or ["Nothing else today."])
+        lines = [f"{datetime.fromisoformat(e.start).astimezone(self.tz):%-I:%M %p} {e.title}" for e in events]
+        seen = {e.title.strip().lower() for e in events}
+        lines += [line for title, line in mac if title not in seen]
+        return BriefSection("Calendar", lines[:BRIEF_EVENTS] or ["Nothing on your calendars today."])
+
+    def _mac_today(self, now: datetime) -> list[tuple[str, str]]:
+        """(title, line) for what's left today on the Mac's calendars (iCloud Home / Work, invites, holidays),
+        through Maxie.app's bridge. Nothing when the bridge isn't there: Google still answers."""
+        if self.apple is None:
+            return []
+        try:
+            rows = self.apple.calendar(1)["events"]
+        except AppleUnavailable:
+            return []
+        out = []
+        for e in rows:
+            title = e.get("title", "")
+            if str(e.get("all_day", "")).lower() == "true":
+                out.append((title.strip().lower(), f"All day: {title}"))
+            elif (start := datetime.fromisoformat(e["start"]).astimezone(self.tz)) >= now:
+                out.append((title.strip().lower(), f"{start:%-I:%M %p} {title}"))
+        return out
 
     def _email(self, now: datetime) -> BriefSection:
         if not self.mail_connected:
@@ -431,10 +456,12 @@ class Proactive:
                 self.on_step_error(f"{name}: {e}")
 
 
-async def run_scheduler(p: Proactive, every: float = 60.0, on_error=print) -> None:
+async def run_scheduler(p: Proactive, every: float = 60.0, on_error=print, paused=lambda: False) -> None:
+    """One tick a minute; none while he has Maxie paused."""
     while True:
         try:
-            await asyncio.to_thread(p.tick)
+            if not paused():
+                await asyncio.to_thread(p.tick)
         except Exception as e:  # one bad tick must not kill the scheduler  # noqa: BLE001
             on_error(f"proactive tick failed: {e}")
         await asyncio.sleep(every - time.time() % every)

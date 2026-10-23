@@ -101,3 +101,36 @@ def test_a_held_sleep_shows_even_outside_quiet_hours():
     assert ev.current()["state"] == "sleep"
     t[0] += 21
     assert ev.current()["state"] == "idle"
+
+
+async def test_stream_survives_keep_alives_and_still_delivers(clock):
+    # Arrange: a quiet stretch longer than several keep-alives (the 15 s keep-alive cancelled the
+    # subscription, the stream died and the notch showed "offline" every 16 s)
+    from maxie.events import sse
+    ev = Events(clock=clock)
+    stream = sse(ev, heartbeat_s=0.02)
+    assert "idle" in await anext(stream)
+
+    # Act: three keep-alives, then a real event
+    beats = [await anext(stream) for _ in range(3)]
+    ev.set_state("listen")
+    after = await asyncio.wait_for(anext(stream), 1)
+
+    # Assert
+    assert beats == [": keep-alive\n\n"] * 3
+    assert json.loads(after.removeprefix("data: "))["state"] == "listen"
+    await stream.aclose()
+
+
+async def test_a_client_leaving_mid_wait_closes_its_subscription_cleanly(clock):
+    # The app quitting while the stream waits (a read pending across a keep-alive): closing must not raise
+    # "aclose(): asynchronous generator is already running" or leave the subscriber queue behind
+    from maxie.events import sse
+    ev = Events(clock=clock)
+    stream = sse(ev, heartbeat_s=0.02)
+    await anext(stream)
+    assert await anext(stream) == ": keep-alive\n\n"  # a read is now pending
+
+    await stream.aclose()
+
+    assert ev._subs == []

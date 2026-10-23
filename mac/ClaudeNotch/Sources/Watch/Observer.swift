@@ -12,6 +12,7 @@ final class Observer {
     static let titleEvery: TimeInterval = 30
     static let flushEvery: TimeInterval = 60
     static let maxBuffer = 400
+    nonisolated static let axTimeout: Float = 0.5
 
     private weak var hub: HubClient?
     private(set) var buffer: [[String: Any]] = []
@@ -52,9 +53,20 @@ final class Observer {
         return t
     }
 
+    /// The title is asked of the app itself through Accessibility, which waits on that app: off the main thread, so
+    /// a busy app never stalls Maxie (26 of 244 main-thread stalls on 2026-10-21 were here).
     func note(_ app: NSRunningApplication, switched: Bool) {
         guard watching, let bundle = app.bundleIdentifier, bundle != Bundle.main.bundleIdentifier else { return }
-        let (title, secure) = Self.frontWindow(app.processIdentifier)
+        let pid = app.processIdentifier
+        Task { [weak self] in
+            let (title, secure) = await Task.detached(priority: .utility) { Self.frontWindow(pid) }.value
+            self?.noted(app, bundle: bundle, title: title, secure: secure, switched: switched)
+        }
+    }
+
+    private func noted(_ app: NSRunningApplication, bundle: String, title: String, secure: Bool, switched: Bool) {
+        guard watching, Self.stillFront(app.processIdentifier, front: NSWorkspace.shared.frontmostApplication?.processIdentifier)
+        else { return }
         if !switched, title == lastTitle { return }
         lastTitle = title
         let items = WatchRules.items(bundle: bundle, name: app.localizedName ?? bundle, category: category(of: app),
@@ -83,10 +95,15 @@ final class Observer {
         return found.isEmpty ? nil : found
     }
 
+    /// A title looked up off the main thread counts only if its app is still in front: a slow app's late answer
+    /// must not land after the app he switched to (out of order, and the wrong "last title").
+    nonisolated static func stillFront(_ pid: pid_t, front: pid_t?) -> Bool { front == pid }
+
     /// The front window's title, and whether a password field has focus. Without Accessibility: no title.
-    static func frontWindow(_ pid: pid_t) -> (title: String, secure: Bool) {
+    nonisolated static func frontWindow(_ pid: pid_t) -> (title: String, secure: Bool) {
         guard AXIsProcessTrusted() else { return ("", false) }
         let app = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(app, axTimeout)  // the default is ~6 s for an app that doesn't answer
         var focused: CFTypeRef?
         var secure = false
         if AXUIElementCopyAttributeValue(app, kAXFocusedUIElementAttribute as CFString, &focused) == .success,

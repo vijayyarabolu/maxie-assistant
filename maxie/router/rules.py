@@ -315,7 +315,10 @@ LOOSE = [
     (re.compile(r"\b(?:quieter|softer|turn (?:it|the volume|the music) down|volume down|too loud)\b"), "down"),
     (re.compile(r"\b(?:pause|stop) (?:the )?(?:music|song)\b"), "pause"),
     (re.compile(r"\b(?:skip|next) (?:this )?(?:song|track)\b"), "next"),
-    (re.compile(r"\b(?:open|launch|fire up|bring up|pull up|start) (?:up )?(?:the )?(?P<name>[\w .]+?)(?: app)?$"), "open"),
+    # "open" as the command itself, never the word inside a question: "what are my open reminders" opened the
+    # Reminders app instead of answering
+    (re.compile(r"^(?:(?:please|can you|could you|would you|will you|go ahead and)\s+)?(?:open|launch|fire up|bring up"
+                r"|pull up|start) (?:up )?(?:the )?(?P<name>[\w .]+?)(?: app)?(?: please)?$"), "open"),
 ]
 
 

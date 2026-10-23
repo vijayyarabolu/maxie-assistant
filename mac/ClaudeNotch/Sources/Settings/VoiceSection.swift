@@ -25,7 +25,7 @@ struct VoiceSection: View {
 
     struct Form: Identifiable { let id: String; let label: String; let note: String }
     static let forms = [
-        Form(id: "hey max", label: "\"Hey Max\"", note: "Anywhere you start talking."),
+        Form(id: "hey max", label: "\"Hey Max\"", note: "When you start talking. Works for anyone."),
         Form(id: "hey maxie", label: "\"Hey Maxie\"", note: "Same, the long name."),
         Form(id: "max", label: "\"Max\"", note: "Only first, after a pause, and only your voice."),
         Form(id: "maxie", label: "\"Maxie\"", note: "Only first, after a pause, and only your voice."),
@@ -111,12 +111,14 @@ struct VoiceSection: View {
                     if speaker?.enrolled == true {
                         Button("Forget my voice") { Task { speaker = await post("/api/voice/speaker/forget") } }.buttonStyle(.sunset)
                     }
-                    Button(speaker?.enrolled == true ? "Teach again" : "Teach Maxie your voice") {
+                    Button(speaker?.enrolled == true ? "Re-train my voice" : "Teach Maxie your voice") {
                         Task { _ = await hub.postJSON("/api/voice/enroll", dict: [:]); speaker = await hub.fetch("/api/voice/speaker") }
                     }
                     .buttonStyle(.sunsetProminent).disabled(speaker?.enrolling == true)
                 }
             }
+            Color.clear.frame(height: 2)
+            WakeTestCard(hub: hub)
             Text("Like the new Siri: say the name and your question in one breath (\"Max what's on my calendar\"), follow up for 8 s without it, talk over Maxie to interrupt, or type with \(HotKeys.optionSpace.label).")
                 .font(Light.small).foregroundStyle(Light.quiet).fixedSize(horizontal: false, vertical: true)
         }
@@ -125,7 +127,7 @@ struct VoiceSection: View {
     private var speakerLine: String {
         guard let speaker else { return "Five short phrases. Only voice prints are kept, on this Mac." }
         if speaker.enrolling { return "Listening: repeat each phrase after Maxie says it." }
-        if speaker.enrolled { return "Maxie knows your voice: TV and other people can't wake it." }
+        if speaker.enrolled { return "Maxie knows your voice: a bare \u{201C}Max\u{201D} from TV or other people can't wake it. Missed you? Re-train, or try the test below." }
         return speaker.message.isEmpty ? "Five short phrases. Until then only \"Hey Max\" and \"Hey Maxie\" work." : speaker.message
     }
 

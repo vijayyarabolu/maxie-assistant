@@ -29,7 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Messages, Calendar, Contacts, Notes, Mail, Spotlight and the on-device model for the hub.
     private var bridge: BridgeServer?
     private let hotKeys = HotKeys()
-    /// Set when Quit muted the voice helper ("Voice and Maxie stop"); the next launch unmutes it.
+    /// Set when an older Maxie's Quit muted the voice helper instead of stopping it; the next launch unmutes it.
     static let mutedByQuitKey = "voiceMutedByQuit"
     #if DEBUG
     private lazy var watchdog = MainThreadWatchdog()  // logs main-thread stalls with their stack
@@ -49,6 +49,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// the hub stopped hearing from the voice helper (hung, or stopped): restart it, waiting longer each time
+    /// (1, 2, 4… min, at most 30) until it answers again. Never while paused, or while a crash loop has it stopped.
+    private func restartVoiceHelper() {
+        guard !hub.paused, !crashWatch.isStopped(MacHelpers.voiceLabel) else { return }
+        if let last = lastVoiceKick, Date().timeIntervalSince(last) < voiceKicks.wait { return }
+        lastVoiceKick = Date()
+        voiceKicks = voiceKicks.next()
+        Log.d("voice helper stopped answering: kickstart (next wait \(Int(voiceKicks.wait))s)")
+        Task.detached { MacHelpers.kickstart(MacHelpers.voiceLabel) }
+    }
+    private var lastVoiceKick: Date?
+    private var voiceKicks = Backoff(first: AppDelegate.voiceKickEvery, cap: AppDelegate.voiceKickLongest)
+    static let voiceKickEvery: TimeInterval = 60
+    static let voiceKickLongest: TimeInterval = 1800
+    let crashWatch = CrashWatch()
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {  // unit tests: no UI at all
             NSApp.setActivationPolicy(.prohibited)
@@ -64,12 +80,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if DEBUG
         watchdog.start()  // the installed Maxie only: never the tests' or the off-screen renders'
         #endif
+        hub.onVoiceDown = { [weak self] in self?.restartVoiceHelper() }
+        hub.onVoiceUp = { [weak self] in self.map { $0.voiceKicks = $0.voiceKicks.reset() } }
+        Task.detached(priority: .utility) { Services.startMissing() }  // back from Quit: hub, voice and Laya again
+        crashWatch.onNotice = { [weak self] in self?.hub.show(VoiceNotice(kind: "crash_loop", text: $0)) }
+        crashWatch.start()
         if let token = Keychain.read("HUB_TOKEN") {
             bridge = BridgeServer(token: token, handle: BridgeRoutes.handle)
             bridge?.start()
         }
         Task.detached(priority: .background) { await MemoryIndex.refresh() }  // Siri / Spotlight see the user's memory
         notch.show()
+        PanelWarmup.run(hub: hub)  // the first "Hey Maxie" opens the panel as fast as later ones
         let isDefaultLaunch = notification.userInfo?[NSApplication.launchIsDefaultUserInfoKey] as? Bool ?? false
         if LaunchRules.opensPanel(isDefaultLaunch: isDefaultLaunch, asLoginItem: asLoginItem) {
             notch.expand(reason: .menu)  // one click: the user sees Maxie answer at once
@@ -79,12 +101,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
         notch.onQuit = { [weak self] in self?.quitAsking() }
         LightWindow.onQuit = { [weak self] in self?.quitAsking() }
+        NotificationCenter.default.addObserver(forName: .maxieQuits, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.quitAsking() }
+        }
         hotKeys.register(HotKeys.optionSpace, id: 1) { [weak self] in self?.notch.toggle() }
         hotKeys.register(HotKeys.optionShiftS, id: 2) { [weak self] in
             self?.notch.expand(reason: .hotkey)
             self?.hub.lookAtScreen(question: "What's on my screen?")
         }
         hotKeys.register(HotKeys.optionShiftW, id: 3) { [weak self] in self?.flows.toggle() }
+        hotKeys.register(HotKeys.optionShiftP, id: 4) { [weak self] in self?.hub.togglePause() }
         _ = flows  // listens for "watch me" and approved replays from the hub
         voice.onWake = { [weak self] in
             self?.hub.post(state: .listen)
@@ -110,21 +136,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
-    /// ⌘Q, More › Quit, the menu bar: ask, then mute the voice helper (it is a separate service and
-    /// would keep hearing "Hey Max") and quit.
+    /// ⌘Q, More › Quit, the menu bar, Settings: ask, then stop the hub, the voice helper and Laya (KeepAlive
+    /// services: left alone they kept listening for "Hey Max" and costing CPU) and quit. Opening Maxie starts them.
     func quitAsking() {
         let a = NSAlert()
         a.messageText = "Quit Maxie?"
-        a.informativeText = "Voice and Maxie stop. Open Maxie again to bring them back."
+        a.informativeText = "Maxie, his voice and his hub stop until you open Maxie again."
         a.addButton(withTitle: "Quit")
         a.addButton(withTitle: "Cancel")
         NSApp.activate(ignoringOtherApps: true)
         guard a.runModal() == .alertFirstButtonReturn else { return }
         Task {
-            if !hub.voiceMuted {
-                UserDefaults.standard.set(true, forKey: Self.mutedByQuitKey)
-                await hub.setMutedNow(true)
-            }
+            await Task.detached { Services.stopAll() }.value
             NSApp.terminate(nil)
         }
     }
@@ -135,12 +158,19 @@ struct MenuContent: View {
     let delegate: AppDelegate
 
     var body: some View {
-        Text(hub.connected ? "Maxie is \(hub.state.label.lowercased())" : "Hub offline. Is the Mac service running?")
+        Text(!hub.connected ? "Hub offline. Is the Mac service running?"
+             : hub.paused ? "Maxie is paused" : "Maxie is \(hub.state.label.lowercased())")
         Divider()
         Button("Open  \(HotKeys.optionSpace.label)") { delegate.notch.expand(reason: .menu) }
         Button("Settings…") { delegate.settings.show() }
             .keyboardShortcut(",", modifiers: [.command])
+        if let trouble = delegate.crashWatch.line { Text(trouble) }
+        Divider()
+        Button(hub.paused ? "Resume Maxie  \(HotKeys.optionShiftP.label)" : "Pause Maxie  \(HotKeys.optionShiftP.label)") {
+            hub.togglePause()
+        }
         Button(hub.voiceMuted ? "Resume listening" : "Pause listening") { hub.setMuted(!hub.voiceMuted) }
+            .disabled(hub.paused)
         Toggle("Watch and learn", isOn: Binding(get: { hub.eyesOpen }, set: { hub.setWatching($0) }))  // his eyes
         Divider()
         Button("Look at my screen  \(HotKeys.optionShiftS.label)") {

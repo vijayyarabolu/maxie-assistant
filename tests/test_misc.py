@@ -41,3 +41,31 @@ async def test_self_harm_message_always_shows_988(make_services):
     s = make_services()
     events = [e async for e in s.agent.handle("I want to kill myself")]
     assert "988" in "".join(e.get("text", "") for e in events)
+
+
+def test_the_db_reads_whole_rows_while_another_thread_writes():
+    # the early answer reads the budget while the router thread logs its route. Rows were fetched after
+    # the lock was let go, so a read on one thread could come back empty or NULL mid-write on another.
+    import threading
+
+    db = DB()
+    db.script("CREATE TABLE usage(cost REAL); CREATE TABLE log(t TEXT)")
+    db.execute("INSERT INTO usage VALUES (1.5)")
+    stop, bad = threading.Event(), []
+
+    def write():  # the router thread: the same budget check, then its log line
+        while not stop.is_set():
+            db.one("SELECT COALESCE(SUM(cost),0) AS s FROM usage")
+            db.execute("INSERT INTO log VALUES ('x')")
+
+    t = threading.Thread(target=write)
+    t.start()
+    try:
+        for _ in range(3000):
+            row = db.one("SELECT COALESCE(SUM(cost),0) AS s FROM usage")
+            if row is None or row["s"] != 1.5:
+                bad.append(row)
+    finally:
+        stop.set()
+        t.join()
+    assert bad == []

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import sys
 import time
 
 from ..config import Settings, data_dir, secret
+from . import aec
 from .audio import RATE, VAD, Mic, Player, Segmenter
 from .loop import Hub, VoiceLoop
 from .speaker import MODEL_PATH, SpeakerCheck
@@ -52,6 +54,11 @@ def bench(path: str, stt: STT, tts: TTS) -> int:
     return 0
 
 
+def log(message: str) -> None:
+    """voice.log lines carry the time, so a wake can be lined up with what he did."""
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {message}", flush=True)
+
+
 def open_mic(name: str, factory=None):
     """The mic from Settings (voice_input_device) or, when it is unplugged or misnamed, the default one:
     a bad name must never crash-loop the launchd agent."""
@@ -60,7 +67,7 @@ def open_mic(name: str, factory=None):
         try:
             return factory(device=name)
         except Exception as e:  # sounddevice raises ValueError/PortAudioError for a missing device  # noqa: BLE001
-            print(f"voice: mic {name!r} not available ({e}); using the default input", flush=True)
+            log(f"voice: mic {name!r} not available ({e}); using the default input")
     return factory(device=None)
 
 
@@ -77,10 +84,10 @@ def _speaker_check():
     """His voice prints (Settings › Voice). None when the model file isn't on this Mac: then only
     "Hey Max" / "Hey Maxie" wake Maxie."""
     if not MODEL_PATH.exists():
-        print(f"voice: no speaker model at {MODEL_PATH}; bare \"Max\" stays off", flush=True)
+        log(f"voice: no speaker model at {MODEL_PATH}; bare \"Max\" stays off")
         return None
     check = SpeakerCheck(data_dir() / "voice" / "speaker.npz")
-    print(f"voice: speaker check {'on (enrolled)' if check.enrolled else 'ready, not enrolled'}", flush=True)
+    log(f"voice: speaker check {'on (enrolled), wake bar ' + format(check.wake_threshold, '.2f') if check.enrolled else 'ready, not enrolled'}")
     return check
 
 
@@ -99,12 +106,16 @@ def main(argv: list[str] | None = None) -> int:
         print("No HUB_TOKEN yet: in Settings, Access, press Connect the Mac app (or set HUB_TOKEN)", file=sys.stderr)
         return 1
     hub = Hub(args.hub or f"http://{settings.hub_host}:{settings.hub_port}", token)
-    print(f"voice: stt {stt.command_model}, tts {tts.engine} ({settings.voice}); warming up", flush=True)
+    log(f"voice: stt {stt.command_model}, tts {tts.engine} ({settings.voice}); warming up")
     stt.warm()
     tts.warm()
-    with open_mic(settings.voice_input_device) as mic:
-        loop = VoiceLoop(ears=mic, vad=VAD(), stt=stt, tts=tts, player=Player(), hub=hub,
-                         log=lambda m: print(m, flush=True), barge_in_ok=_not_on_speakers,
+    # her voice out of the mic while she speaks on the built-in speakers; in headphones there is no echo
+    canceller = aec.create(log, wanted=lambda: not _not_on_speakers())
+    mic_filter = canceller.capture if canceller else None
+    with open_mic(settings.voice_input_device, factory=functools.partial(Mic, filter=mic_filter)) as mic:
+        loop = VoiceLoop(ears=mic, vad=VAD(), stt=stt, tts=tts, hub=hub,
+                         player=Player(on_write=canceller.render if canceller else None),
+                         log=log, barge_in_ok=_not_on_speakers,
                          speaker=_speaker_check(), wake_forms=frozenset(settings.wake_words))
         try:
             loop.run()

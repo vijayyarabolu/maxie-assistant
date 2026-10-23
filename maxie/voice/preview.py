@@ -1,6 +1,7 @@
 """Hear a voice before choosing it: "Hi there, I'm Maxie." in any Kokoro voice and speed.
 
-A clean 16-bit mono 24 kHz WAV with 10 ms fades (no click or chirp), cached on disk per (voice, speed, line).
+A clean 16-bit mono 24 kHz WAV, levelled and faded like what the voice helper plays, cached on disk per
+(voice, speed, line).
 Kokoro is loaded only when a sample isn't cached yet and unloaded after a short idle, so the hub doesn't keep a
 300 MB model around for a settings screen.
 """
@@ -16,6 +17,7 @@ from pathlib import Path
 import numpy as np
 
 from ..maxie_look import VOICE_SPEED, VOICES
+from .audio import fade, level, limit, resample
 
 RATE = 24000
 FADE_S = 0.010
@@ -47,17 +49,9 @@ class KokoroEngine:
 
 
 def to_wav(x: np.ndarray, rate: int) -> bytes:
-    """24 kHz mono int16 with linear 10 ms fades in and out."""
-    x = np.asarray(x, dtype=np.float32).reshape(-1)
-    if rate != RATE and len(x):
-        n = max(1, round(len(x) * RATE / rate))
-        x = np.interp(np.linspace(0, len(x) - 1, n), np.arange(len(x)), x).astype(np.float32)
-    fade = min(int(RATE * FADE_S), len(x) // 2)
-    if fade:
-        ramp = np.linspace(0.0, 1.0, fade, dtype=np.float32)
-        x = x.copy()
-        x[:fade] *= ramp
-        x[-fade:] *= ramp[::-1]
+    """24 kHz mono int16: levelled, resampled with the player's filter (Apple `say` is 22.05 kHz), faded in and out."""
+    x = level(np.asarray(x, dtype=np.float32).reshape(-1), rate)
+    x = fade(limit(resample(x, rate, RATE)), RATE, ms=FADE_S * 1000)
     pcm = (np.clip(x, -1, 1) * 32767).astype("<i2")
     buf = io.BytesIO()
     with wave.open(buf, "wb") as w:

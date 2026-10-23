@@ -58,58 +58,100 @@ def _text(content) -> str:
     return ""
 
 
+@dataclass
+class _Scan:
+    """What one transcript said so far, and how far it was read. Transcripts only grow, so each read starts where
+    the last stopped (the watcher re-parsed a 265 MB transcript every minute, most of the hub's idle CPU)."""
+    offset: int = 0
+    tail: bytes = b""     # the bytes just before `offset`: a rewritten file no longer has them there
+    title: str = ""
+    last_prompt: str = ""
+    last_reply: str = ""
+    branch: str = ""
+    cwd: str = ""
+    last_ts: float = 0.0
+    last_role: str = ""
+    waiting: bool = False
+
+    def feed(self, ev: dict) -> None:
+        t = ev.get("type")
+        if t == "ai-title":
+            self.title = ev.get("aiTitle") or self.title
+            return
+        if t not in ("user", "assistant"):
+            return
+        msg = ev.get("message") or {}
+        content = msg.get("content")
+        text = _text(content).strip()
+        self.cwd = ev.get("cwd") or self.cwd
+        self.branch = ev.get("gitBranch") or self.branch
+        if ts := _epoch(ev.get("timestamp")):
+            self.last_ts = max(self.last_ts, ts)
+        if t == "user" and text and not text.startswith("<") and not isinstance(content, list):
+            self.last_prompt, self.last_role = text, "user"
+        elif t == "user" and isinstance(content, list):
+            if any(b.get("type") == "tool_result" for b in content if isinstance(b, dict)):
+                self.last_role = "tool_result"
+        elif t == "assistant":
+            blocks = content if isinstance(content, list) else []
+            self.waiting = any(b.get("type") == "tool_use" and b.get("name") == "AskUserQuestion" for b in blocks if isinstance(b, dict))
+            if text:
+                self.last_reply, self.last_role = text, "assistant"
+            elif any(b.get("type") == "tool_use" for b in blocks if isinstance(b, dict)):
+                self.last_role = "tool_use"
+
+
+TAIL_BYTES = 64
+_scans: dict[str, _Scan] = {}
+
+
+def _scan(path: Path) -> _Scan:
+    """The transcript read up to its last whole line, from where the last read of it stopped."""
+    scan = _scans.get(str(path))
+    with open(path, "rb") as fh:
+        if scan is not None and scan.offset:
+            fh.seek(scan.offset - len(scan.tail))
+            if fh.read(len(scan.tail)) != scan.tail:
+                scan = None  # rewritten, not appended to: read it again
+        if scan is None:
+            scan = _Scan()
+            fh.seek(0)
+        for raw in fh:
+            if raw.endswith(b"\n"):
+                scan.offset += len(raw)
+                scan.tail = (scan.tail + raw)[-TAIL_BYTES:]
+            try:
+                ev = json.loads(raw)
+            except ValueError:  # a half-written last line (read again next time), or not JSON
+                continue
+            if isinstance(ev, dict):
+                scan.feed(ev)
+    _scans[str(path)] = scan
+    return scan
+
+
 def read_session(path: Path, now: float | None = None) -> Session | None:
-    """Parse one transcript (streaming, only the fields we need). None when it has no user turn."""
+    """Parse one transcript (only the fields we need, only what was added since the last read). None when it has
+    no user turn."""
     now = now or time.time()
-    title = last_prompt = last_reply = branch = cwd = ""
-    last_ts = 0.0
-    last_role = ""
-    waiting = False
     try:
-        with open(path, encoding="utf-8", errors="replace") as fh:
-            for line in fh:
-                try:
-                    ev = json.loads(line)
-                except ValueError:
-                    continue
-                t = ev.get("type")
-                if t == "ai-title":
-                    title = ev.get("aiTitle") or title
-                elif t in ("user", "assistant"):
-                    msg = ev.get("message") or {}
-                    content = msg.get("content")
-                    text = _text(content).strip()
-                    cwd = ev.get("cwd") or cwd
-                    branch = ev.get("gitBranch") or branch
-                    ts = _epoch(ev.get("timestamp"))
-                    if ts:
-                        last_ts = max(last_ts, ts)
-                    if t == "user" and text and not text.startswith("<") and not isinstance(content, list):
-                        last_prompt, last_role = text, "user"
-                    elif t == "user" and isinstance(content, list):
-                        last_role = "tool_result" if any(b.get("type") == "tool_result" for b in content if isinstance(b, dict)) else last_role
-                    elif t == "assistant":
-                        blocks = content if isinstance(content, list) else []
-                        waiting = any(b.get("type") == "tool_use" and b.get("name") == "AskUserQuestion" for b in blocks if isinstance(b, dict))
-                        if text:
-                            last_reply, last_role = text, "assistant"
-                        elif any(b.get("type") == "tool_use" for b in blocks if isinstance(b, dict)):
-                            last_role = "tool_use"
+        scan = _scan(path)
+        mtime = path.stat().st_mtime
     except OSError:
         return None
-    if not last_prompt:
+    if not scan.last_prompt:
         return None
-    mtime = path.stat().st_mtime
-    if waiting and last_role in ("assistant", "tool_use"):
+    if scan.waiting and scan.last_role in ("assistant", "tool_use"):
         status = "waiting for you"
     elif now - mtime < ACTIVE_S:
         status = "working"
     else:
         status = "finished"
-    project = Path(cwd).name if cwd else path.parent.name.rsplit("-", 1)[-1]
+    project = Path(scan.cwd).name if scan.cwd else path.parent.name.rsplit("-", 1)[-1]
     # newest = whichever is later: the last record's timestamp or the file's mtime (a write with an older
     # timestamp, or two sessions with equal ones, must not make the order depend on directory listing order)
-    return Session(project, cwd, title, last_prompt[:300], last_reply[:600], max(last_ts, mtime), status, branch)
+    return Session(project, scan.cwd, scan.title, scan.last_prompt[:300], scan.last_reply[:600],
+                   max(scan.last_ts, mtime), status, scan.branch)
 
 
 def _epoch(ts: str | None) -> float:

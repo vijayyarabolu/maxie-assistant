@@ -18,7 +18,18 @@ from ..budget import Budget
 from ..config import Settings, data_dir, delete_secret, secret, store_secret
 from ..db import DB
 from ..events import Events
-from ..hands import apple, claude_code, google, google_real, jobs, mac, sessions, shortcuts, weather
+from ..hands import (
+    apple,
+    calendars,
+    claude_code,
+    google,
+    google_real,
+    jobs,
+    mac,
+    sessions,
+    shortcuts,
+    weather,
+)
 from ..hands.registry import Registry, Tool, schema
 from ..latency import Latency
 from ..memory import Memory
@@ -120,6 +131,7 @@ def build(settings: Settings | None = None, db_path: Path | str | None = None, f
     else:
         mail, cal, drive = g, g, google.FakeDrive(g)
     google.register(registry, mail, cal, drive, now=now_dt)
+    calendars.register(registry, cal, the_apple, now=now_dt)  # every calendar: Google and the Mac's
     if not fakes:
         assert_real(mail=mail, calendar=cal, drive=drive, jobs=the_jobs, mac=the_mac)
     jobs.register(registry, the_jobs)
@@ -154,6 +166,7 @@ def build(settings: Settings | None = None, db_path: Path | str | None = None, f
                    secret("VAPID_CONTACT") or "mailto:admin@localhost")
     notifier = notifier or (FakeNotifier() if fakes else push)
     proactive = Proactive(db, settings, mail, cal, the_jobs, budget, Wins(db, **kw), notifier, models=models, **kw)
+    proactive.apple = the_apple  # the Mac's calendars in the brief, beside Google
     proactive.sessions = sessions.Watcher(proactive.notify if hasattr(proactive, "notify") else notifier.push, **kw)
     presence = Presence(db, settings, fallback_quiet=proactive.quiet, **kw)  # asleep when you sleep
     proactive.presence = presence

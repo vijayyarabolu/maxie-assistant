@@ -15,10 +15,23 @@ enum CalendarStore {
         let start = Calendar.current.startOfDay(for: now)
         let end = Calendar.current.date(byAdding: .day, value: max(1, min(days, 31)), to: start) ?? now
         let pred = store.predicateForEvents(withStart: start, end: end, calendars: nil)
-        return store.events(matching: pred).prefix(60).map { e in
-            ["title": e.title ?? "", "start": e.isAllDay ? "all day" : e.startDate.ISO8601Format(),
-             "end": e.endDate.ISO8601Format(), "location": e.location ?? "", "calendar": e.calendar.title]
-        }
+        return store.events(matching: pred).prefix(60).map { row($0) }
+    }
+
+    /// One event for the hub. An all-day event keeps its day ("all day" alone made a week of holidays
+    /// sound like today) in his time zone.
+    static func row(_ e: EKEvent, zone: TimeZone = .current) -> [String: String] {
+        let day = Date.ISO8601FormatStyle(dateSeparator: .dash, timeZone: zone).year().month().day()
+        return ["title": e.title ?? "", "start": e.isAllDay ? e.startDate.formatted(day) : e.startDate.ISO8601Format(),
+                "all_day": e.isAllDay ? "true" : "false", "end": e.endDate.ISO8601Format(),
+                "location": e.location ?? "", "calendar": e.calendar?.title ?? ""]
+    }
+
+    /// The calendars Calendar.app shows (iCloud Home / Work, a Google account added to macOS, holidays): the hub
+    /// says which ones it read, and an account that isn't syncing ("⚠" in Calendar) shows up as missing here.
+    static func calendars() -> [[String: String]] {
+        guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { return [] }
+        return store.calendars(for: .event).map { ["title": $0.title, "account": $0.source.title] }
     }
 
     static func reminders() async throws(AppleError) -> [[String: String]] {

@@ -15,10 +15,12 @@ import os
 import re
 import subprocess
 import tempfile
+import threading
 from pathlib import Path
 
 import numpy as np
 
+from .audio import level
 from .wake import detect
 
 STOP = re.compile(r"^\W*(?:(?:hey|ok|okay)?[\s,]*(?:maxie|maxi|maxy|maxey|max)[\s,]*)?(?:stop|shut up|be quiet|cancel|never mind|nevermind)\b", re.I)
@@ -27,12 +29,27 @@ CONVERSE = re.compile(r"^\W*(?:let'?s (?:talk|chat)|can we (?:talk|chat)|(?:i (?
                       r"|i (?:want|need) to talk|conversation mode)\b[\s,.!?:]*(?:(?:about|for a bit|for a minute)\b[\s,]*)?", re.I)
 DONE_TALKING = re.compile(r"^\W*(?:(?:ok(?:ay)?|thanks?|thank you)[\s,]*)*(?:that'?s (?:all|it)(?: for now)?|bye(?: for now)?|goodbye"
                           r"|good ?night|talk (?:to you )?later|end (?:the )?conversation|i'?m done(?: talking)?|we'?re done)\W*$", re.I)
+# "Maxie, go to sleep": the whole command pauses Maxie; "put my Mac to sleep" is an ordinary turn.
+SLEEP = re.compile(r"^\W*(?:(?:hey )?(?:maxie|maxi|maxy|max)\W+)?(?:go to (?:sleep|bed)|take a break|pause(?: yourself| maxie)?"
+                   r"|stop listening)\W*$", re.I)
 SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 MODELS = {"tiny": "mlx-community/whisper-tiny", "base": "mlx-community/whisper-base-mlx",
           "small": "mlx-community/whisper-small-mlx"}
 KOKORO_DIR = Path(os.environ.get("KOKORO_DIR", Path.home() / ".maxie" / "models" / "kokoro"))
 RATE_SILENCE = 16000
 TEST_LINE = "Hi there. This is how I sound."  # Settings › Voice › Test; pre-synthesised so it plays at once
+# Whisper's prompt for audio that may start with the wake word: it spells the name the way the grammar knows.
+# Measured on the wake fixtures in simulated rooms: base misses 22/90 → 4/90, tiny (asleep) 26/54 →
+# 6/90, still 0 false wakes on "maximum", "HBO Max", "Max is…".
+WAKE_PROMPT = "Hey Maxie. Maxie, Max."
+STOP_PROMPT = "Hey Maxie. Max. Maxie, stop."  # over her own voice: the one thing he'd say (7/8 vs 3/8)
+WAKE_TOKENS = 32   # a wake check is a few words; caps a prompt-induced loop ("Maxie. Maxie. …" x75) and its cost
+LOOP = re.compile(r"(\b.{2,40}?)(?:\s*\1){3,}", re.I | re.S)  # the same phrase 4+ times in a row
+
+
+def unloop(text: str) -> str:
+    """One copy of a phrase Whisper repeated 4+ times in a row (it does that on short audio with a prompt)."""
+    return LOOP.sub(r"\1", text).strip()
 
 
 def is_wake(text: str) -> tuple[bool, str]:
@@ -51,6 +68,10 @@ def is_done_talking(text: str) -> bool:
     return bool(DONE_TALKING.match(text or ""))
 
 
+def is_sleep(text: str) -> bool:
+    return bool(SLEEP.match(text or ""))
+
+
 def is_stop(text: str) -> bool:
     return bool(STOP.match(text or "")) and len((text or "").split()) <= 5
 
@@ -65,6 +86,24 @@ def sentences(buffer: str, final: bool = False) -> tuple[list[str], str]:
     return [p.strip() for p in parts[:-1] if p.strip()], parts[-1]
 
 
+FIRST_WORDS_MIN = 10    # a first sentence this long is spoken in two pieces...
+CLAUSE_WORDS_MIN = 4    # ...at its first comma with at least this many words on each side
+CLAUSE = re.compile(r"(?<=,)\s+")
+
+
+def first_pieces(sentence: str) -> list[str]:
+    """The reply's first sentence, split at its first comma when it is long: Kokoro makes the first clause in about
+    half the time, so the first words come sooner and the rest is made while they play (maxie.voice.ahead)."""
+    words = sentence.split()
+    m = CLAUSE.search(sentence)
+    if len(words) < FIRST_WORDS_MIN or m is None:
+        return [sentence]
+    head, tail = sentence[:m.start()], sentence[m.end():]
+    if min(len(head.split()), len(tail.split())) < CLAUSE_WORDS_MIN:
+        return [sentence]
+    return [head, tail]
+
+
 class STT:
     """Awake: one model (base) for the wake check and the command. Asleep (10 min idle): the wake check
     runs on tiny, which evicts base from mlx-whisper's single slot and frees its memory."""
@@ -72,6 +111,7 @@ class STT:
     def __init__(self, wake_model: str = "base", command_model: str = "base"):
         self.wake_model, self.command_model = MODELS[wake_model], MODELS[command_model]
         self._awake_wake_model = self.wake_model
+        self._one_at_a_time = threading.Lock()
 
     def sleep(self) -> None:
         self.wake_model = MODELS["tiny"]
@@ -81,12 +121,20 @@ class STT:
     def wake(self) -> None:
         self.wake_model = self._awake_wake_model
 
-    def transcribe(self, audio: np.ndarray, quick: bool = False) -> str:
+    def transcribe(self, audio: np.ndarray, quick: bool = False, wake: bool = False, stop: bool = False) -> str:
+        """`quick`: the wake check (the wake model). `wake`: the command model on a segment that starts with the
+        wake word. Both get the wake prompt; a follow-up command doesn't. `stop`: what he said over her, with the stop
+        prompt."""
         import mlx_whisper
-        out = mlx_whisper.transcribe(audio.astype(np.float32),
-                                     path_or_hf_repo=self.wake_model if quick else self.command_model,
-                                     language="en", fp16=True, condition_on_previous_text=False, temperature=0.0)
-        return (out.get("text") or "").strip()
+        extra = {"sample_len": WAKE_TOKENS} if quick else {}
+        with self._one_at_a_time:  # the barge-in watcher runs on its own thread; MLX is not thread-safe
+            out = mlx_whisper.transcribe(audio.astype(np.float32),
+                                         path_or_hf_repo=self.wake_model if quick else self.command_model,
+                                         language="en", fp16=True, condition_on_previous_text=False, temperature=0.0,
+                                         initial_prompt=STOP_PROMPT if stop else WAKE_PROMPT if quick or wake else None,
+                                         **extra)
+        text = out.get("text") or ""
+        return unloop(text) if quick or wake else text  # only the prompt makes Whisper loop
 
     def warm(self) -> None:
         self.transcribe(np.zeros(RATE_SILENCE, dtype=np.float32), quick=True)
@@ -146,8 +194,9 @@ class TTS:
         self._load()
         if self.kokoro:
             samples, rate = self.kokoro.create(text, voice=self.voice, speed=self.speed, lang="en-us")
-            return np.asarray(samples, dtype=np.float32), int(rate)
-        return self._say(text)
+        else:
+            samples, rate = self._say(text)
+        return level(np.asarray(samples, dtype=np.float32), int(rate)), int(rate)  # even, and never clipped
 
     @staticmethod
     def _say(text: str) -> tuple[np.ndarray, int]:

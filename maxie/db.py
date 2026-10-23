@@ -27,11 +27,15 @@ class DB:
         with self._lock:
             self._conn.executescript(sql)
 
+    # Rows are fetched under the lock too: two threads running the same SQL share one cached statement, so a
+    # fetch after letting go could read the other thread's half-stepped result (a NULL sum, a missing row).
     def all(self, sql: str, params: tuple | dict = ()) -> list[dict]:
-        return [dict(r) for r in self.execute(sql, params).fetchall()]
+        with self._lock:
+            return [dict(r) for r in self._conn.execute(sql, params).fetchall()]
 
     def one(self, sql: str, params: tuple | dict = ()) -> dict | None:
-        row = self.execute(sql, params).fetchone()
+        with self._lock:
+            row = self._conn.execute(sql, params).fetchone()
         return dict(row) if row else None
 
     def add_columns(self, table: str, columns: dict[str, str]) -> None:

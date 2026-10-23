@@ -1,5 +1,7 @@
 """Playback without clicks or chirps: fades, one stream per reply, silent tail, warm chime."""
 import threading
+import time
+import types
 
 import numpy as np
 
@@ -9,19 +11,32 @@ RATE = 24000
 MAX_JUMP = 0.1
 
 
-class RecordingStream:
-    """Stands in for the sounddevice output stream: keeps every sample written, in order."""
+class FakeDevice:
+    """Stands in for the sounddevice output stream: pulls through the Player's callback a block at a time (20x faster
+    than real time) and keeps every sample it was handed, in order. `hold`: (started, release) events, it waits after
+    the first block with sound in it, like a device busy playing; `under_at`: blocks reported late (an underflow)."""
 
-    def __init__(self, log, rate):
-        self.log, self.rate, self.chunks, self.closed = log, rate, [], False
+    def __init__(self, log, rate, callback, block=240, hold=None, under_at=()):
+        self.rate, self.callback, self.block, self.hold, self.under_at = rate, callback, block, hold, set(under_at)
+        self.chunks, self.closed, self.running = [], False, True
         log.append(self)
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread.start()
 
-    def write(self, a):
-        assert not self.closed
-        self.chunks.append(np.asarray(a, dtype=np.float32).reshape(-1))
+    def _run(self):
+        while self.running:
+            buf = np.zeros((self.block, 1), np.float32)
+            status = types.SimpleNamespace(output_underflow=len(self.chunks) + 1 in self.under_at)
+            self.callback(buf, self.block, None, status)
+            self.chunks.append(buf[:, 0].copy())
+            if self.hold is not None and not self.hold[0].is_set() and buf.any():
+                self.hold[0].set()
+                self.hold[1].wait(1)
+            time.sleep(self.block / self.rate / 20)
 
     def stop(self):
-        pass
+        self.running = False
+        self.thread.join(1)
 
     def close(self):
         self.closed = True
@@ -31,15 +46,21 @@ class RecordingStream:
         return np.concatenate(self.chunks) if self.chunks else np.zeros(0, dtype=np.float32)
 
 
+def sound(a):
+    """From the first to the last non-zero sample: what was played, without the device's idle blocks around it."""
+    nz = np.nonzero(a)[0]
+    return a[nz[0]:nz[-1] + 1] if len(nz) else a[:0]
+
+
 def loud_sine(seconds, freq=440.0, amp=0.5):
     """Worst case for clicks: starts and ends at full amplitude (cos), like a chunk cut mid-word."""
     t = np.arange(int(RATE * seconds)) / RATE
     return (amp * np.cos(2 * np.pi * freq * t)).astype(np.float32)
 
 
-def recording_player():
+def recording_player(**kw):
     streams = []
-    return Player(open_stream=lambda rate: RecordingStream(streams, rate)), streams
+    return Player(open_stream=lambda rate, cb: FakeDevice(streams, rate, cb, **kw)), streams
 
 
 def test_fade_returns_a_copy_that_starts_and_ends_at_zero():
@@ -63,16 +84,8 @@ def test_a_full_reply_is_one_stream_with_no_jumps_and_a_silent_tail():
 
 
 def test_barge_in_fades_out_instead_of_cutting():
-    player, streams = recording_player()
     started, release = threading.Event(), threading.Event()
-
-    class Slow(RecordingStream):  # a real device blocks while it plays; hold after the first chunk
-        def write(self, a):
-            super().write(a)
-            started.set()
-            release.wait(1)
-
-    player._open = lambda rate: Slow(streams, rate)
+    player, streams = recording_player(hold=(started, release))
     t = threading.Thread(target=lambda: player.play(loud_sine(3.0), RATE))
     t.start()
     started.wait(1)
@@ -81,7 +94,7 @@ def test_barge_in_fades_out_instead_of_cutting():
     t.join(2)
     player.end()
     audio = streams[0].audio
-    assert len(audio) < RATE * 3 + RATE * TAIL_S  # it was cut short
+    assert len(sound(audio)) < RATE * 0.2  # it was cut short, at once
     assert np.abs(np.diff(audio)).max() <= MAX_JUMP and np.abs(audio[-int(RATE * TAIL_S):]).max() == 0
 
 
@@ -115,3 +128,66 @@ def test_the_settings_test_line_is_the_one_the_voice_helper_caches():
     from maxie.voice.speech import TEST_LINE
     swift = Path(__file__).parents[1] / "mac/ClaudeNotch/Sources/Settings/VoiceSection.swift"
     assert f'"text": "{TEST_LINE}"' in swift.read_text()
+
+
+def test_segmenter_reports_a_short_pause_and_the_audio_so_far():
+    from maxie.voice.audio import FRAME, Segmenter
+    seg = Segmenter()
+    for i in range(20):
+        seg.feed(np.full(FRAME, 0.9, np.float32), 0.9, i * 0.032)
+    for i in range(7):
+        seg.feed(np.zeros(FRAME, np.float32), 0.0, (20 + i) * 0.032)
+    assert seg.in_speech and 0.2 <= seg.trailing_silence_s() < 0.6
+    assert len(seg.snapshot()) == len(seg._frames) * FRAME
+
+
+def test_the_mic_wakes_the_loop_every_64_ms_and_still_hands_it_32_ms_frames(monkeypatch):
+    # the voice helper's ~4 % CPU was mostly waking 31 times a second, not the speech model (0.3 %)
+    import sys
+    import types
+
+    from maxie.voice.audio import FRAME, Mic
+    opened = {}
+
+    class Stream:
+        def __init__(self, **kw):
+            opened.update(kw)
+
+    monkeypatch.setitem(sys.modules, "sounddevice", types.SimpleNamespace(InputStream=Stream))
+    mic = Mic()
+    block = np.arange(opened["blocksize"], dtype=np.float32).reshape(-1, 1)
+
+    mic._cb(block, len(block), None, None)
+
+    assert opened["blocksize"] == 2 * FRAME
+    frames = [mic.q.get_nowait() for _ in range(2)]
+    assert [len(f) for f in frames] == [FRAME, FRAME] and frames[1][0] == FRAME and mic.q.empty()
+
+
+def test_a_closed_mic_stops_the_device_once_and_reopens_when_frames_are_wanted(monkeypatch):
+    # muted, the device stops (macOS's orange dot goes); the panel's mic button still gets frames
+    import sys
+    import types
+
+    from maxie.voice.audio import FRAME, Mic
+    calls = []
+
+    class Stream:
+        def __init__(self, **kw):
+            pass
+
+        def stop(self):
+            calls.append("stop")
+
+        def start(self):
+            calls.append("start")
+
+    monkeypatch.setitem(sys.modules, "sounddevice", types.SimpleNamespace(InputStream=Stream))
+    mic = Mic()
+    mic.close_mic()
+    mic.close_mic()
+    mic.q.put_nowait(np.zeros(FRAME, np.float32))
+
+    frame = next(mic.frames())
+
+    assert calls == ["stop", "start"] and len(frame) == FRAME and not mic.closed

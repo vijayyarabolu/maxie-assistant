@@ -66,3 +66,37 @@ final class LatencyTests: XCTestCase {
         report("Maxie action chip", times)
     }
 }
+
+/// what `NotchController.expand` does on the main thread when "listen" arrives or he clicks Maxie: build
+/// the chat panel and draw its first frame (off-screen here; never on his screen). The opening spring that follows
+/// runs on Core Animation.
+@MainActor
+final class PanelOpenTests: XCTestCase {
+    func testThePanelIsBuiltAndDrawnQuickly() {
+        let hub = HubClient(base: URL(string: "http://127.0.0.1:9")!, token: nil)
+        hub.showDemoTranscript()
+        var times: [Double] = []
+        for _ in 0..<21 {
+            let start = CACurrentMediaTime()
+            let view = PanelView(hub: hub, onClose: {}, onSettings: { _ in }, onPin: { _ in }, onQuit: {},
+                                 onResize: { _ in }, onResizeEnd: {}, source: .top)
+                .frame(width: PanelLayout.width, height: PanelLayout.defaultSize.height)
+            let host = NSHostingView(rootView: view)
+            let w = NotchController.makeChatPanel(CGRect(origin: CGPoint(x: -40_000, y: -40_000), size: PanelLayout.defaultSize))
+            w.alphaValue = 0
+            w.ignoresMouseEvents = true
+            w.contentView = host
+            w.orderBack(nil)
+            host.layoutSubtreeIfNeeded()
+            w.displayIfNeeded()
+            times.append(CACurrentMediaTime() - start)
+            NotchController.discard(w)
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        }
+        let warm = Array(times.dropFirst()).sorted()  // the first one also starts WebKit for the live Maxie view
+        let p50 = warm[warm.count / 2], p95 = warm[Int(Double(warm.count - 1) * 0.95)]
+        print(String(format: "PERF Panel open (build + first frame): first %.1f ms, p50 %.1f ms, p95 %.1f ms over %d",
+                     times[0] * 1000, p50 * 1000, p95 * 1000, warm.count))
+        XCTAssertLessThan(p50, 0.200)  // 58 ms on a quiet Mac, ~130 ms under load 24; a cold build is ~350 ms
+    }
+}

@@ -19,6 +19,12 @@ final class HubClient {
     private(set) var backupAppLines: [String] = []  // "jobhunt ✓ Oct 15, 3:00 AM"
     private(set) var backupStale = false      // red badge: older than 2 days or failed
     private(set) var voiceMuted = false
+    var paused = false         // Pause Maxie (HubClient+Pause): not listening, watching or working
+    var notice: VoiceNotice?   // a line under Maxie for a few seconds ("Didn't catch that")
+    var voiceAlive = true      // the voice helper answers the hub (its 0.5 s poll is the heartbeat)
+    @ObservationIgnored var noticeTask: Task<Void, Never>?
+    @ObservationIgnored var onVoiceDown: (@MainActor () -> Void)?  // the app restarts the helper
+    @ObservationIgnored var onVoiceUp: (@MainActor () -> Void)?    // it answers again: the restarts' backoff starts over
     var maxie: MaxieInfo?                 // Settings › Maxie (HubClient+Maxie: syncMaxie / putMaxie)
     @ObservationIgnored var maxieSink: (([String: Any]) -> Void)?  // tests only: where putMaxie's changes go
     private(set) var sending = false      // one message in flight: never dropped, never doubled
@@ -74,7 +80,7 @@ final class HubClient {
                 connected = true
                 wait = 1
                 onConnect?()
-                Task { await refreshPanel() }
+                Task { await refreshPanel(); await refreshVoice() }
                 for try await line in bytes.lines where line.hasPrefix("data: ") {
                     let data = Data(line.dropFirst(6).utf8)
                     if line.hasPrefix("data: {\"type\": \"task\""), let t = try? JSONDecoder().decode(TaskInfo.self, from: data) {
@@ -87,6 +93,7 @@ final class HubClient {
                 // Hub down, Mac waking up, or a bad token: show "offline" and retry with backoff.
             }
             connected = false
+            if wait == Self.hubDownAfter { show(VoiceNotice(kind: "hub_down", text: VoiceNotice.hubDown)) }  // ~7 s down, once
             try? await Task.sleep(for: .seconds(Double(wait)))
             wait = min(wait * 2, 30)
         }
@@ -95,6 +102,7 @@ final class HubClient {
     /// States that are a feeling (good news, proud, a hard day): the trackpad gives one soft tap.
     /// No sound: nothing should play after a reply ends.
     static let feelings: Set<BotState> = [.happy, .proud, .gentle]
+    static let hubDownAfter: UInt64 = 4  // the third failed reconnect in a row (1 + 2 + 4 s)
     static let hopSeconds = 2.0
     static let glanceSeconds = 1.0
 
@@ -102,7 +110,7 @@ final class HubClient {
         NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
     }
 
-    private func apply(_ ev: HubEvent) {
+    func apply(_ ev: HubEvent) {  // internal: tests feed it events
         switch ev.type {
         case "state":
             guard let s = ev.state.flatMap(BotState.init(rawValue:)) else { return }
@@ -153,6 +161,13 @@ final class HubClient {
             }
         case "background":
             Task { await loadBackground() }
+        case "voice_notice":
+            if let kind = ev.kind, let text = ev.text { show(VoiceNotice(kind: kind, text: text)) }
+        case "voice":
+            setVoiceAlive(ev.alive ?? true)
+        case "paused":
+            paused = ev.on ?? false
+            Task { await syncMuted() }  // pausing mutes him; resuming puts back what he had
         default:
             break
         }
@@ -199,8 +214,8 @@ final class HubClient {
         struct Models: Decodable { let lines: [String]; let price_guessed: [String: Bool]; let active: [String: String] }
         if let b: BriefInfo = try? await get("/api/brief") { brief = b }
         if let b: Budget = try? await get("/api/budget") { budgetLine = b.line }
-        struct SettingsInfo: Decodable { let voice_muted: Bool }
-        if let st: SettingsInfo = try? await get("/api/settings") { voiceMuted = st.voice_muted }
+        await syncMuted()
+        await syncPause()
         await syncWatch()
         struct BackupInfo: Decodable { let line: String; let app_lines: [String]; let stale: Bool; let last_ok: Bool; let warnings: [String] }
         if let b: BackupInfo = try? await get("/api/backup") {
@@ -373,6 +388,11 @@ final class HubClient {
         } catch {
             return (0, error.localizedDescription)
         }
+    }
+
+    func syncMuted() async {
+        struct SettingsInfo: Decodable { let voice_muted: Bool }
+        if let st: SettingsInfo = try? await get("/api/settings") { voiceMuted = st.voice_muted }
     }
 
     func setMuted(_ muted: Bool) {

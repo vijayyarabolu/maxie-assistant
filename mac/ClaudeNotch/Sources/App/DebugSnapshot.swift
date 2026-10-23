@@ -61,6 +61,9 @@ enum DebugSnapshot {
             // Scrolled into the options, Maxie stays pinned at the top, compact
             await writeSettingsWindow(hub: hub, notch: notch, section: .maxie, scroll: 520,
                                       to: dir.appending(path: "settings-maxie-scrolled.png"))
+            // the Pause shortcut and the Pause / Quit buttons, at the bottom of General
+            await writeSettingsWindow(hub: hub, notch: notch, section: .general, scroll: 420,
+                                      to: dir.appending(path: "settings-general-scrolled.png"))
             // Automation with synthetic answers: Music quit but allowed earlier
             await Offscreen.render(AutomationSample().padding(28).frame(width: 720, height: 420)
                                        .background(Color(nsColor: .windowBackgroundColor)),
@@ -70,6 +73,11 @@ enum DebugSnapshot {
                                    size: CGSize(width: 720, height: 520), to: dir.appending(path: "screen-sample.png"))
             writeGlyphs(to: dir.appending(path: "menubar-glyphs.png"))
             await Offscreen.render(NotchStatesSheet(), size: NotchStatesSheet.size, to: dir.appending(path: "notch-states.png"))
+            // what the notch says instead of silence, and a finished "Test wake word"
+            await Offscreen.render(VoiceNoticeSheet(), size: VoiceNoticeSheet.size, to: dir.appending(path: "voice-notices.png"))
+            await Offscreen.render(SunsetCard { WakeTestCard(hub: hub, sample: WakeTestCard.sampleMiss) }.padding(28)
+                                       .frame(width: 720, height: 220).background(Color(nsColor: .windowBackgroundColor)),
+                                   size: CGSize(width: 720, height: 220), to: dir.appending(path: "wake-test-sample.png"))
             writeNotchLayer(to: dir.appending(path: "notch-layer.png"))
             writeWatching(to: dir.appending(path: "notch-watching.png"))
             HoverTrace.write(to: dir.appending(path: "hover-trace.png"))

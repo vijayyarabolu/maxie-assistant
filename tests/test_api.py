@@ -87,3 +87,12 @@ def test_stop(make_services):
     s = make_services()
     gen = s.kill.generation()
     assert client_for(s).post("/api/stop", headers=H).json()["ok"] and s.kill.stopped_since(gen)
+
+
+def test_pausing_music_that_isnt_open_says_so(make_services):
+    # "Pause the music" with Music closed answered "Paused." although nothing was playing
+    from maxie.hands.mac import MUSIC_CLOSED
+    s = make_services()
+    s.fakes["mac"].music = lambda command, query="": MUSIC_CLOSED
+    events = ndjson(client_for(s).post("/api/chat", json={"text": "pause the music"}, headers=H))
+    assert events[-1]["text"] == MUSIC_CLOSED

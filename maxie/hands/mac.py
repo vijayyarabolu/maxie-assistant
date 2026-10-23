@@ -67,11 +67,29 @@ def _open(*args: str) -> None:
     subprocess.run(["open", "-g", *args] if in_background() else ["open", *args], check=True, timeout=10)
 
 
+OSA_TIMEOUT_S = 15
+STUCK = ("The app didn't answer. If macOS is asking whether Maxie may control it, allow that in System Settings › "
+         "Privacy & Security › Automation (the question can't show while the Mac is locked).")
+
+
 def _osa(script: str) -> str:
-    out = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=15)
+    try:
+        out = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=OSA_TIMEOUT_S)
+    except subprocess.TimeoutExpired as e:
+        raise RuntimeError(STUCK) from e
     if out.returncode != 0:
         raise RuntimeError(out.stderr.strip() or "osascript failed")
     return out.stdout.strip() or "done"
+
+
+MUSIC_CLOSED = "Music isn't open, so nothing was playing."
+
+
+def music_if_running(verb: str) -> str:
+    """Pause / skip only a Music that is open: telling a closed Music to pause launched it, and with the screen
+    locked the launch hung until the 15 s timeout."""
+    return (f'if application "Music" is running then\n  tell application "Music" to {verb}\n  return "done"\n'
+            f'else\n  return "{MUSIC_CLOSED}"\nend if')
 
 
 def _q(s: str) -> str:
@@ -109,7 +127,9 @@ class MacOS:
             # TODO(mac): Music search-and-play needs a Shortcut ("Maxie Play") for Apple Music catalog items.
             return _osa(f'tell application "Music" to play (first track of playlist "Library" whose name contains {_q(query)})')
         verbs = {"play": "play", "pause": "pause", "next": "next track", "previous": "previous track"}
-        return _osa(f'tell application "Music" to {verbs[command]}')
+        if command == "play":
+            return _osa(f'tell application "Music" to {verbs[command]}')
+        return _osa(music_if_running(verbs[command]))
 
     def volume(self, level):
         if level == "mute":

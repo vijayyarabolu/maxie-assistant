@@ -161,9 +161,14 @@ class Background:
         return out + [{"name": "Routine", **r, "reads_only": False} for r in routines]
 
 
-async def work(bg: Background, agent, on_error: Callable[[str], None] = print) -> None:
-    """The hub's worker: a screen task when he's away, else the next queued task, else a short nap."""
+async def work(bg: Background, agent, on_error: Callable[[str], None] = print,
+               paused: Callable[[], bool] = lambda: False) -> None:
+    """The hub's worker: a screen task when he's away, else the next queued task, else a short nap. Nothing while
+    he has Maxie paused: the queue waits."""
     while True:
+        if paused():
+            await asyncio.sleep(IDLE_S)
+            continue
         try:
             await asyncio.to_thread(bg.screen_tick)
             if await bg.run_next(agent) is not None:

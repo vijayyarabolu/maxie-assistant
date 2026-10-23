@@ -77,6 +77,8 @@ struct GeneralSection: View {
                 Text("Hotkeys").font(.headline)
                 hotkey(HotKeys.optionSpace.label, "Open the panel with the cursor in the box (again: close)")
                 hotkey(HotKeys.optionShiftS.label, "Look at my screen")
+                hotkey(HotKeys.optionShiftP.label, "Pause Maxie: no listening, watching or work of his own (again: resume)")
+                hotkey(HotKeys.optionShiftW.label, "Watch me once (again: stop)")
                 hotkey("⌘,", "Settings")
                 hotkey("⌘.", "Stop the current task")
                 hotkey("Esc", "Close the panel")
@@ -86,7 +88,8 @@ struct GeneralSection: View {
                 Button { MacHelpers.kickstart(MacHelpers.hubLabel); note = "Hub restarting." } label: { Label("Restart hub", systemImage: "arrow.clockwise") }.buttonStyle(.sunset)
                 Button { MacHelpers.kickstart(MacHelpers.voiceLabel); note = "Voice helper restarting." } label: { Label("Restart voice", systemImage: "waveform") }.buttonStyle(.sunset)
                 Spacer()
-                Button("Quit Maxie") { NSApp.terminate(nil) }.buttonStyle(.sunset)
+                Button(hub.paused ? "Resume Maxie" : "Pause Maxie") { hub.togglePause() }.buttonStyle(.sunset)
+                Button("Quit Maxie") { NotificationCenter.default.post(name: .maxieQuits, object: nil) }.buttonStyle(.sunset)
             }
             NoteLine(text: note)
         }

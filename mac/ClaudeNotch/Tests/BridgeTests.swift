@@ -1,3 +1,4 @@
+import EventKit
 import SQLite3
 import XCTest
 @testable import ClaudeNotch
@@ -156,5 +157,35 @@ final class BridgeTests: XCTestCase {
             sqlite3_finalize(stmt)
         }
         return path
+    }
+}
+
+/// an all-day event went to the hub as "all day" with no date, so a week of holidays sounded like today.
+final class CalendarRowTests: XCTestCase {
+    func testAnAllDayEventKeepsItsDayAndATimedOneItsTime() throws {
+        // Arrange
+        let store = EKEventStore()
+        let zone = try XCTUnwrap(TimeZone(identifier: "America/Chicago"))
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = zone
+        let holiday = EKEvent(eventStore: store)
+        holiday.title = "Diwali/Deepavali"
+        holiday.isAllDay = true
+        holiday.startDate = try XCTUnwrap(cal.date(from: DateComponents(year: 2026, month: 11, day: 8)))
+        holiday.endDate = holiday.startDate
+        let meeting = EKEvent(eventStore: store)
+        meeting.title = "Mock interview"
+        meeting.startDate = try XCTUnwrap(cal.date(from: DateComponents(year: 2026, month: 10, day: 21, hour: 14)))
+        meeting.endDate = meeting.startDate.addingTimeInterval(3600)
+
+        // Act
+        let day = CalendarStore.row(holiday, zone: zone)
+        let timed = CalendarStore.row(meeting, zone: zone)
+
+        // Assert
+        XCTAssertEqual(day["start"], "2026-11-08")
+        XCTAssertEqual(day["all_day"], "true")
+        XCTAssertEqual(timed["start"], "2026-10-21T19:00:00Z")
+        XCTAssertEqual(timed["all_day"], "false")
     }
 }

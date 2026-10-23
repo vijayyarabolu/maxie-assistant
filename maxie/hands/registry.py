@@ -14,6 +14,7 @@ away when he allowed that.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -51,6 +52,7 @@ class TurnContext:
     confirmations: list[Confirmation] = field(default_factory=list)
     on_device: frozenset[str] = frozenset()  # tools the asking device runs itself (the iPhone Shortcut)
     tone: str = ""  # how to sound this turn (maxie.mood): glad, gentle, or suggest rest late at night
+    verdict: asyncio.Event | None = None  # an early answer (maxie.speculate): only reads until it is set
 
 
 @dataclass

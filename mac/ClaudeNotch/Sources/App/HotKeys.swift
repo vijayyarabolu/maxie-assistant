@@ -2,7 +2,7 @@ import AppKit
 import Carbon
 
 /// Global hotkeys through Carbon's RegisterEventHotKey: they work without the Accessibility permission.
-/// ⌥Space opens the panel with the cursor in the box, ⌥⇧S looks at the screen.
+/// ⌥Space opens the panel with the cursor in the box, ⌥⇧S looks at the screen, ⌥⇧P pauses or resumes Maxie.
 @MainActor
 final class HotKeys {
     struct Key: Sendable {
@@ -14,6 +14,7 @@ final class HotKeys {
     static let optionSpace = Key(code: UInt32(kVK_Space), modifiers: UInt32(optionKey), label: "⌥Space")
     static let optionShiftS = Key(code: UInt32(kVK_ANSI_S), modifiers: UInt32(optionKey | shiftKey), label: "⌥⇧S")
     static let optionShiftW = Key(code: UInt32(kVK_ANSI_W), modifiers: UInt32(optionKey | shiftKey), label: "⌥⇧W")
+    static let optionShiftP = Key(code: UInt32(kVK_ANSI_P), modifiers: UInt32(optionKey | shiftKey), label: "⌥⇧P")
 
     nonisolated(unsafe) private static var handlers: [UInt32: @MainActor @Sendable () -> Void] = [:]
     private var refs: [EventHotKeyRef] = []

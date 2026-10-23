@@ -5,6 +5,9 @@ import AppKit
 /// a second. The app only wakes to start a blink (every 2-5.5 s) and to nudge the eyes toward where the user works,
 /// leaning with them (a few times a second, and only when the nudge changed). The model layers hold frame 0, so a still capture
 /// (and Reduce Motion) shows the first frame.
+/// the render server still redrew the notch 30 times a second all day for the idle loop, on every Space
+/// (WindowServer 16.6-20.1 % with Maxie on, 12.8-13.1 % off). Resting (idle, asleep, eyes closed, gentle) the loop
+/// plays once and he holds still, blinking, until his next breath; nothing plays while the notch isn't on screen.
 final class MascotLayerView: NSView {
     private let body = CALayer()  // all of him: leans toward where the user works, from his feet
     private let frameLayer = CALayer()
@@ -19,13 +22,18 @@ final class MascotLayerView: NSView {
     private var cgFrames: [CGImage] = []
     private var cursorTimer: Timer?
     private var blinkTimer: Timer?
+    private var breathTimer: Timer?
+    private var onScreen = true
     private var lastLook = CGSize.zero
     private(set) var lean: Double = 0  // degrees, + is to his right
     private var observers: [NSObjectProtocol] = []
+    private var occlusion: NSObjectProtocol?
 
     static let loopKey = "maxie.loop"
     static let eyeKey = "maxie.eye"
     static let cursorHz = 8.0
+    static let breathEvery: TimeInterval = 30
+    static let resting: Set<BotState> = [.idle, .sleep, .closed, .gentle]
 
     var state: BotState = .idle { didSet { if state != oldValue { reload() } } }
     /// 1 at the notch (the slot size, 2x frames); 1.5 outside it (3x frames, still crisp).
@@ -39,6 +47,8 @@ final class MascotLayerView: NSView {
     var loopAnimation: CAKeyframeAnimation? { frameLayer.animation(forKey: Self.loopKey) as? CAKeyframeAnimation }
     var eyeAnimations: [CAKeyframeAnimation] { holders.compactMap { $0.animation(forKey: Self.eyeKey) as? CAKeyframeAnimation } }
     var ticksEveryFrame: Bool { false }
+    var breathes: Bool { breathTimer != nil }
+    private var isResting: Bool { Self.resting.contains(state) }
     var firstFrameShown: CGImage? { frameLayer.contents.map { $0 as! CGImage } }
 
     override init(frame: NSRect) {
@@ -133,27 +143,51 @@ final class MascotLayerView: NSView {
         holders.forEach { $0.removeAnimation(forKey: Self.eyeKey) }
         guard let loop, let first = cgFrames.first else { CATransaction.commit(); return }
         frameLayer.contents = first
-        let rects = eyeRects(loop)
-        if let first = rects.first { placeEyes(first) }
-        let animate = !reduceMotion && cgFrames.count > 1
-        if animate {
-            let duration = Double(cgFrames.count) / Double(max(loop.meta.fps, 1))
-            frameLayer.add(Self.keyframes("contents", cgFrames, duration), forKey: Self.loopKey)
-            if rects.count == cgFrames.count {
-                for n in 0..<2 {
-                    let base = rects[0][n]
-                    let values = rects.map { r in
-                        CATransform3DConcat(CATransform3DMakeScale(r[n].width / max(base.width, 0.01), r[n].height / max(base.height, 0.01), 1),
-                                            CATransform3DMakeTranslation(r[n].midX - base.midX, r[n].midY - base.midY, 0))
-                    }
-                    holders[n].add(Self.keyframes("transform", values.map { NSValue(caTransform3D: $0) }, duration), forKey: Self.eyeKey)
-                }
-            }
-        }
+        if let first = eyeRects(loop).first { placeEyes(first) }
+        let animate = !reduceMotion && cgFrames.count > 1 && onScreen
+        if animate { playLoop() }
         CATransaction.commit()
-        guard animate, window != nil, loop.liveEyes else { return }
+        guard animate, window != nil else { return }
+        if isResting { breathe() }
+        guard loop.liveEyes else { return }
         scheduleBlink()
         if followCursor { startCursor() }
+    }
+
+    /// The loop and its eyes, once while resting (back to frame 0 after), else over and over.
+    private func playLoop() {
+        guard let loop else { return }
+        let duration = Double(cgFrames.count) / Double(max(loop.meta.fps, 1))
+        let repeats: Float = isResting ? 1 : .infinity
+        frameLayer.add(Self.keyframes("contents", cgFrames, duration, repeats: repeats), forKey: Self.loopKey)
+        let rects = eyeRects(loop)
+        guard rects.count == cgFrames.count else { return }
+        for n in 0..<2 {
+            let base = rects[0][n]
+            let values = rects.map { r in
+                CATransform3DConcat(CATransform3DMakeScale(r[n].width / max(base.width, 0.01), r[n].height / max(base.height, 0.01), 1),
+                                    CATransform3DMakeTranslation(r[n].midX - base.midX, r[n].midY - base.midY, 0))
+            }
+            holders[n].add(Self.keyframes("transform", values.map { NSValue(caTransform3D: $0) }, duration, repeats: repeats),
+                           forKey: Self.eyeKey)
+        }
+    }
+
+    private func breathe() {
+        breathTimer?.invalidate()
+        let t = Timer(timeInterval: Self.breathEvery, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.playLoop() }
+        }
+        t.tolerance = Self.breathEvery / 4  // low power: macOS may batch it
+        RunLoop.main.add(t, forMode: .common)
+        breathTimer = t
+    }
+
+    /// Covered, a full-screen app, the screen locked or asleep: nothing plays (the window's occlusion state).
+    func setOnScreen(_ on: Bool) {
+        guard on != onScreen else { return }
+        onScreen = on
+        restart()
     }
 
     /// Frame 0's eyes: holder centred on the eye, the lid and the eye filling it.
@@ -177,13 +211,13 @@ final class MascotLayerView: NSView {
         }
     }
 
-    static func keyframes(_ keyPath: String, _ values: [Any], _ duration: Double) -> CAKeyframeAnimation {
+    static func keyframes(_ keyPath: String, _ values: [Any], _ duration: Double, repeats: Float = .infinity) -> CAKeyframeAnimation {
         let a = CAKeyframeAnimation(keyPath: keyPath)
         a.values = values
         a.calculationMode = .discrete
         a.duration = duration
-        a.repeatCount = .infinity
-        a.isRemovedOnCompletion = false
+        a.repeatCount = repeats
+        a.isRemovedOnCompletion = repeats != .infinity  // played once: back to the model layer's frame 0
         return a
     }
 
@@ -247,12 +281,22 @@ final class MascotLayerView: NSView {
         blinkTimer = nil
         cursorTimer?.invalidate()
         cursorTimer = nil
+        breathTimer?.invalidate()
+        breathTimer = nil
     }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         // No deinit needed: the timers stop here when the view leaves its window (weak self inside them).
-        if window == nil { stopTimers() } else { restart() }
+        if let occlusion { NotificationCenter.default.removeObserver(occlusion) }
+        occlusion = nil
+        guard let window else { return stopTimers() }
+        occlusion = NotificationCenter.default.addObserver(forName: NSWindow.didChangeOcclusionStateNotification,
+                                                           object: window, queue: .main) { [weak self] n in
+            let visible = (n.object as? NSWindow)?.occlusionState.contains(.visible) ?? true
+            MainActor.assumeIsolated { self?.setOnScreen(visible) }
+        }
+        restart()
     }
 }
 

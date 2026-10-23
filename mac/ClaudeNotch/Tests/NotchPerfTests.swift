@@ -1,4 +1,5 @@
 import AppKit
+import WebKit
 import XCTest
 @testable import ClaudeNotch
 
@@ -24,9 +25,37 @@ final class NotchPerfTests: XCTestCase {
         let anim = try XCTUnwrap(v.loopAnimation, "the frames play as one animation")
         XCTAssertEqual(anim.values?.count, loop.meta.frames)
         XCTAssertEqual(anim.duration, Double(loop.meta.frames) / Double(loop.meta.fps), accuracy: 1e-9)
-        XCTAssertEqual(anim.repeatCount, .infinity)
+        XCTAssertEqual(anim.repeatCount, 1, "resting, the loop plays once, then he holds still")
         XCTAssertEqual(anim.calculationMode, .discrete)
         XCTAssertFalse(v.ticksEveryFrame, "no 30 fps timer on the main thread")
+    }
+
+    /// the idle loop played at 30 fps all day and WindowServer redrew the notch for it on every Space
+    /// (WindowServer 16.6-20.1 % with Maxie on, 12.8-13.1 % off, screen locked). Resting, he breathes now and then.
+    func testARestingMaxieBreathesNowAndThenInsteadOfLoopingForever() throws {
+        let v = MascotLayerView(frame: NSRect(x: 0, y: 0, width: 36, height: 42))
+        let w = hosted(v)
+        defer { w.close() }
+        XCTAssertTrue(v.breathes, "idle: the loop comes back every \(MascotLayerView.breathEvery) s")
+        v.state = .listen
+        XCTAssertEqual(v.loopAnimation?.repeatCount, .infinity, "listening, thinking, talking: loops while it lasts")
+        XCTAssertFalse(v.breathes)
+        v.state = .sleep
+        XCTAssertEqual(v.loopAnimation?.repeatCount, 1, "asleep all night: once, then still")
+    }
+
+    func testNothingPlaysWhileTheNotchIsNotOnScreen() throws {
+        let v = MascotLayerView(frame: NSRect(x: 0, y: 0, width: 36, height: 42))
+        let w = hosted(v)
+        defer { w.close() }
+        v.state = .think
+        v.setOnScreen(false)  // covered, a full-screen app, the screen locked
+        XCTAssertNil(v.loopAnimation)
+        XCTAssertTrue(v.eyeAnimations.isEmpty)
+        XCTAssertFalse(v.breathes)
+        XCTAssertNotNil(v.firstFrameShown)
+        v.setOnScreen(true)
+        XCTAssertEqual(v.loopAnimation?.repeatCount, .infinity, "back on screen: playing again")
     }
 
     func testTheEyesRideTheSameLoop() throws {
@@ -94,5 +123,19 @@ final class NotchPerfTests: XCTestCase {
         NotchController.discard(panel)
         XCTAssertNil(bot.window, "Maxie left the window, so his blink and glance timers stopped")
         XCTAssertFalse(panel.isVisible)
+    }
+
+    func testTheOpenPanelsMaxieHoldsStillWhenIdleAndMovesWhenHeWorks() {
+        XCTAssertTrue(LiveBotView.rests(.idle))
+        XCTAssertTrue(LiveBotView.rests(.sleep))
+        XCTAssertFalse(LiveBotView.rests(.listen))
+        XCTAssertFalse(LiveBotView.rests(.talk))
+        let web = BotWebView(frame: .zero, configuration: WKWebViewConfiguration())
+        web.rest(true)
+        XCTAssertFalse(web.resting, "the move into idle finishes first")
+        RunLoop.main.run(until: Date().addingTimeInterval(BotWebView.settleS + 0.3))
+        XCTAssertTrue(web.resting)
+        web.rest(false)
+        XCTAssertFalse(web.resting, "thinking: draws again at once")
     }
 }

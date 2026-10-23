@@ -71,8 +71,8 @@ def test_file_outside_allowed_folders_is_refused_without_a_model_call(tmp_path, 
 def test_mic_button_asks_the_voice_loop_to_listen(tmp_path, monkeypatch):
     s = services(tmp_path, monkeypatch, None)
     c = TestClient(create_app(s, TOKEN, scheduler=False))
-    assert c.get("/api/voice/wake", headers=H).json() == {"wake": False, "say": [], "enroll": False}
+    assert c.get("/api/voice/wake", headers=H).json() == {"wake": False, "say": [], "enroll": False, "test": False}
     assert c.post("/api/voice/wake", headers=H).status_code == 200
     assert c.post("/api/voice/say", json={"text": "Testing one two."}, headers=H).status_code == 200
-    assert c.get("/api/voice/wake", headers=H).json() == {"wake": True, "say": ["Testing one two."], "enroll": False}
-    assert c.get("/api/voice/wake", headers=H).json() == {"wake": False, "say": [], "enroll": False}  # cleared once read
+    assert c.get("/api/voice/wake", headers=H).json() == {"wake": True, "say": ["Testing one two."], "enroll": False, "test": False}
+    assert c.get("/api/voice/wake", headers=H).json() == {"wake": False, "say": [], "enroll": False, "test": False}  # cleared once read

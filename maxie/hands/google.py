@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
@@ -140,10 +140,6 @@ def register(reg: Registry, mail: Mail, cal: Calendar, drive: Drive, now=datetim
             "description": "which inbox, by its label in Settings: main = your own mail; job = the job-search inbox "
                            "(read-only); other labels are other read-only inboxes. Default main."}
 
-    def events(a):
-        start = now().astimezone()
-        return [asdict(e) for e in cal.events(start, start + timedelta(days=float(a.get("days", 1))))]
-
     def read(a):
         e = mail.get(a["id"])
         return asdict(e) if e else "not found"
@@ -160,8 +156,6 @@ def register(reg: Registry, mail: Mail, cal: Calendar, drive: Drive, now=datetim
                  schema({"to": s, "subject": s, "body": s}),
                  lambda a: mail.send(a["to"], a["subject"], a["body"]), "send",
                  summary=lambda a: f"Send email to {a['to']}: \"{a['subject']}\""))
-    reg.add(Tool("calendar_events", "List the user's calendar events from now for N days.",
-                 schema({"days": {"type": "number"}}), events, "read", untrusted_output=True))
     reg.add(Tool("create_event", "Create a calendar event. Always needs the user's confirmation.",
                  schema({"title": s, "start": s, "end": s, "attendees": {"type": "array", "items": s}}),
                  lambda a: cal.create(a["title"], a["start"], a["end"], a.get("attendees", [])), "invite",
